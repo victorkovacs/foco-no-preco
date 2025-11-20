@@ -4,23 +4,12 @@
 @tailwind components;
 @tailwind utilities;
 
-/* CSS Customizado para o login (Cores e Fontes) */
-/* Isso garante que as classes Tailwind customizadas funcionem */
-
+/* Apenas regras globais (como a fonte) devem permanecer aqui */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 body {
     font-family: 'Inter', sans-serif;
 }
-.bg-primary-dark {
-    background-color: #002D5A;
-}
-.bg-highlight {
-    background-color: #D00000;
-}
-.text-highlight {
-    color: #D00000;
-}
-.border-highlight {
-    border-color: #D00000;
-}
-/* etc. */
+
+/* REMOVIDO:
+.bg-primary-dark, .bg-highlight, .text-highlight, .border-highlight
+Essas regras serão definidas no tailwind.config.js */

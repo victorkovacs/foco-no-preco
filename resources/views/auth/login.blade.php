@@ -5,31 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Mercado Scan</title>
     
-    <script src="https://cdn.tailwindcss.com"></script>
+    {{-- 1. CARREGAMENTO CORRETO DE ASSETS VIA VITE --}}
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    
+    {{-- 2. REMOVIDO: A CDN do Tailwind e o Bloco <style> embutido. --}}
+    
+    {{-- 3. A inclusão do Lucide JS deve ser mantida, pois é uma dependência externa --}}
     <script src="https://unpkg.com/lucide@latest"></script>
     
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        /* Cores do Logo */
-        .bg-primary-dark {
-            background-color: #002D5A;
-        }
-        .bg-highlight {
-            background-color: #D00000;
-        }
-        .text-highlight {
-            color: #D00000;
-        }
-        .border-highlight {
-            border-color: #D00000;
-        }
-        .hover\:bg-highlight-dark:hover {
-            background-color: #B00000;
-        }
-    </style>
 </head>
 <body class="bg-primary-dark min-h-screen flex items-center justify-center p-4">
 
@@ -83,12 +66,10 @@
                     </div>
                 </div>
 
+                {{-- 4. USO DE CLASSES TAILWIND EM VEZ DE ESTILOS INLINE --}}
                 <button 
                     type="submit" 
-                    class="w-full text-white p-3 rounded-lg font-bold text-lg transition-colors duration-200"
-                    style="background-color: #002D5A;" 
-                    onmouseover="this.style.backgroundColor='#004182'"
-                    onmouseout="this.style.backgroundColor='#002D5A'"
+                    class="w-full bg-primary-dark hover:bg-primary-darker text-white p-3 rounded-lg font-bold text-lg transition-colors duration-200"
                 >
                     Entrar
                 </button>
@@ -96,27 +77,6 @@
         </form>
     </div>
 
-    <script>
-        function togglePasswordVisibility(inputId, buttonElement) {
-            const input = document.getElementById(inputId);
-            const iconEye = buttonElement.querySelector('.icon-eye');
-            const iconEyeOff = buttonElement.querySelector('.icon-eye-off');
-
-            if (input.type === 'password') {
-                input.type = 'text';
-                iconEye.classList.add('hidden');
-                iconEyeOff.classList.remove('hidden');
-            } else {
-                input.type = 'password';
-                iconEye.classList.remove('hidden');
-                iconEyeOff.classList.add('hidden');
-            }
-        }
-        document.addEventListener('DOMContentLoaded', () => {
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
-        });
-    </script>
+    {{-- 5. REMOVIDO: Bloco <script> duplicado, já carregado via app.js --}}
 </body>
 </html>
