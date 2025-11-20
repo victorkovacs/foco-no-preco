@@ -1,15 +1,18 @@
-/* resources/css/app.css */
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* Apenas regras globais (como a fonte) devem permanecer aqui */
+@import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-body {
-    font-family: 'Inter', sans-serif;
+
+@theme {
+    --font-sans: 'Inter', sans-serif;
+
+    /* 1. O AZUL (Para usar nas bordas dos inputs) */
+    --color-primary-dark: #002D5A;
+    --color-primary-darker: #004182;
+    
+    /* 2. O VERMELHO (Para manter o topo do formulário vermelho) */
+    --color-highlight: #D00000; 
+    --color-highlight-dark: #B00000;
 }
 
-/* REMOVIDO:
-.bg-primary-dark, .bg-highlight, .text-highlight, .border-highlight
-Essas regras serão definidas no tailwind.config.js */
+body {
+    font-family: var(--font-sans);
+}
