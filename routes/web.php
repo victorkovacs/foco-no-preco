@@ -5,6 +5,7 @@ use App\Http\Controllers\PaginasController;
 
 Route::get('/', function () {
     return '<h1> estou testando como está sendo <h1>';
+    
 });
 
 Route::get('/sobre', [PaginasController::class, 'sobre']);
