@@ -1,11 +1,26 @@
-@import 'tailwindcss';
+/* resources/css/app.css */
 
-@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../storage/framework/views/*.php';
-@source '../**/*.blade.php';
-@source '../**/*.js';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+/* CSS Customizado para o login (Cores e Fontes) */
+/* Isso garante que as classes Tailwind customizadas funcionem */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+body {
+    font-family: 'Inter', sans-serif;
 }
+.bg-primary-dark {
+    background-color: #002D5A;
+}
+.bg-highlight {
+    background-color: #D00000;
+}
+.text-highlight {
+    color: #D00000;
+}
+.border-highlight {
+    border-color: #D00000;
+}
+/* etc. */

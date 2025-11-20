@@ -1,16 +1,10 @@
 <?php
 
+use App\Http\Controllers\Auth\LoginController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\PaginasController;
 
-Route::get('/', function () {
-    return '<h1> estou testando como está sendo <h1>';
-    
-});
+Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
 
-Route::get('/sobre', [PaginasController::class, 'sobre']);
-Route::get('/produto/{id}', [PaginasController::class, 'produto']);
-
-Route::get('/posts', [PaginasController::class, 'ListarPosts']);
-
+Route::post('/login', [LoginController::class, 'authenticate']);
 
