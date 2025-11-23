@@ -1,0 +1,242 @@
+version: '3.8'
+
+services:
+  # --- 1. O SITE (LARAVEL + PHP) ---
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.laravel
+    image: foconopreco-app
+    container_name: foconopreco_app
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - .:/var/www
+    networks:
+      - foconopreco-network
+
+  # --- 2. O SERVIDOR WEB (NGINX) ---
+  webserver:
+    image: nginx:alpine
+    container_name: foconopreco_webserver
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - .:/var/www
+      - ./docker/nginx:/etc/nginx/conf.d
+    depends_on:
+      - app
+    networks:
+      - foconopreco-network
+
+  # --- 3. O BANCO DE DADOS (MYSQL) ---
+  db:
+    image: mysql:8.0
+    container_name: foconopreco_db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_USER: ${DB_USERNAME}
+    ports:
+      - "3306:3306"
+    volumes:
+      - dbdata:/var/lib/mysql
+    networks:
+      - foconopreco-network
+
+  # --- 4. PHPMYADMIN (VISUALIZADOR DO BANCO) ---
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: foconopreco_pma
+    environment:
+      PMA_HOST: db
+      PMA_USER: ${DB_USERNAME}
+      PMA_PASSWORD: ${DB_PASSWORD}
+      UPLOAD_LIMIT: 64M
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
+    networks:
+      - foconopreco-network
+
+  # --- 5. REDIS (FILAS) ---
+  redis:
+    image: redis:alpine
+    container_name: foconopreco_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - foconopreco-network
+
+  # --- 6. ROBÔS PYTHON (INTEGRADOS) ---
+  
+  worker_scrape:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    container_name: worker_scrape
+    command: python3 -m celery -A python_services.scraping.celery_app worker --loglevel=info -Q fila_scrape --concurrency=10
+    volumes:
+      - .:/app
+    env_file: .env
+    environment:
+      - DB_HOST=db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+      - db
+    restart: unless-stopped
+    networks:
+      - foconopreco-network
+
+  worker_ia:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    container_name: worker_ia
+    command: python3 -m celery -A python_services.scraping.celery_app worker --loglevel=info -Q fila_ia --concurrency=2
+    volumes:
+      - .:/app
+    env_file: .env
+    environment:
+      - DB_HOST=db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+      - db
+    restart: unless-stopped
+    networks:
+      - foconopreco-network
+
+  worker_conteudo:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    container_name: worker_conteudo
+    command: python3 -m celery -A python_services.content_ia.celery_app_conteudo worker --loglevel=info -Q fila_conteudo --concurrency=2
+    volumes:
+      - .:/app
+    env_file: .env
+    environment:
+      - DB_HOST=db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+      - db
+    restart: unless-stopped
+    networks:
+      - foconopreco-network
+
+  coletor_scrape:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    container_name: coletor_scrape
+    command: python3 -u python_services/scraping/coletor.py
+    volumes:
+      - .:/app
+    env_file: .env
+    environment:
+      - DB_HOST=db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+      - db
+    restart: unless-stopped
+    networks:
+      - foconopreco-network
+
+  coletor_ia:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    container_name: coletor_ia
+    command: python3 -u python_services/scraping/coletor_ia.py
+    volumes:
+      - .:/app
+    env_file: .env
+    environment:
+      - DB_HOST=db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+      - db
+    restart: unless-stopped
+    networks:
+      - foconopreco-network
+
+  coletor_conteudo:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    container_name: coletor_conteudo
+    command: python3 -u python_services/content_ia/coletor_conteudo.py
+    volumes:
+      - .:/app
+    env_file: .env
+    environment:
+      - DB_HOST=db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+      - db
+    restart: unless-stopped
+    networks:
+      - foconopreco-network
+
+  produtor_conteudo:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    container_name: produtor_conteudo
+    command: python3 -u python_services/content_ia/produtor_conteudo.py
+    volumes:
+      - .:/app
+    env_file: .env
+    environment:
+      - DB_HOST=db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+      - db
+    restart: unless-stopped
+    networks:
+      - foconopreco-network
+
+networks:
+  foconopreco-network:
+    driver: bridge
+
+volumes:
+  dbdata:
+    driver: local
+
+    # --- ROBÔ DE BACKUP (Google Drive) ---
+  worker_backup:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    container_name: worker_backup
+    command: python3 -u python_services/backup/backup_drive.py
+    volumes:
+      - .:/app
+      - ./service_account.json:/app/service_account.json
+    env_file: .env
+    environment:
+      - DB_HOST=db
+    depends_on:
+      - db
+    restart: unless-stopped
+    networks:
+      - foconopreco-network
+    
+    # --- ADICIONE ESTAS LINHAS AQUI EMBAIXO ---
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      

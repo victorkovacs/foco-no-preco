@@ -5,7 +5,7 @@
 @section('content')
 <div class="w-full max-w-7xl mx-auto">
     
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+    <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
         <div>
             <h1 class="text-2xl font-bold text-gray-800 flex items-center">
                 <i data-lucide="edit-3" class="mr-3 text-primary-dark"></i>
@@ -13,39 +13,11 @@
             </h1>
             <p class="text-gray-500 text-sm mt-1">Gerencie o catálogo, categorias e status.</p>
         </div>
-    </div>
-
-    <div class="bg-blue-50 border border-blue-100 rounded-xl p-5 mb-8">
-        <h3 class="text-sm font-bold text-blue-800 mb-3 flex items-center">
-            <i data-lucide="upload-cloud" class="w-4 h-4 mr-2"></i>
-            Importação em Massa
-        </h3>
         
-        {{-- Formulário de Importação (Aponta para uma rota futura) --}}
-        <form action="#" method="POST" enctype="multipart/form-data" class="flex flex-col md:flex-row gap-4 items-end">
-            @csrf
-            
-            <div class="w-full md:w-auto flex-1">
-                <label class="block text-xs font-medium text-blue-700 mb-1">Arquivo Excel (.xlsx, .csv)</label>
-                <input type="file" name="planilha" accept=".xlsx, .xls, .csv" class="block w-full text-sm text-gray-500
-                    file:mr-4 file:py-2 file:px-4
-                    file:rounded-lg file:border-0
-                    file:text-sm file:font-semibold
-                    file:bg-white file:text-blue-700
-                    hover:file:bg-blue-50
-                    cursor-pointer border border-blue-200 rounded-lg bg-white">
-            </div>
-
-            <div class="flex gap-2 w-full md:w-auto">
-                <button type="button" class="px-4 py-2 bg-white text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors text-sm font-medium flex items-center whitespace-nowrap">
-                    <i data-lucide="download" class="w-4 h-4 mr-2"></i> Baixar Modelo
-                </button>
-                
-                <button type="submit" class="px-4 py-2 bg-primary-dark text-white rounded-lg hover:bg-opacity-90 transition-colors text-sm font-medium flex items-center whitespace-nowrap shadow-sm">
-                    <i data-lucide="upload" class="w-4 h-4 mr-2"></i> Importar Planilha
-                </button>
-            </div>
-        </form>
+        <a href="{{ route('produtos.mass_update') }}" class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg flex items-center transition-colors shadow-sm font-medium text-sm">
+            <i data-lucide="layers" class="w-4 h-4 mr-2"></i>
+            Atualização em Massa
+        </a>
     </div>
 
     @if(session('success'))
@@ -63,7 +35,7 @@
                 <div class="relative">
                     <i data-lucide="search" class="absolute left-3 top-2.5 h-4 w-4 text-gray-400"></i>
                     <input type="text" name="search" value="{{ request('search') }}"
-                           class="pl-10 w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 outline-none text-sm"
+                           class="pl-10 w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
                            placeholder="SKU ou Nome...">
                 </div>
             </div>
@@ -71,7 +43,7 @@
             <div class="md:col-span-4">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Marca</label>
                 <select name="filter_marca" onchange="this.form.submit()"
-                        class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 outline-none text-sm bg-white">
+                        class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white">
                     <option value="">Todas as Marcas</option>
                     @foreach($marcas as $marca)
                         <option value="{{ $marca }}" {{ request('filter_marca') == $marca ? 'selected' : '' }}>
@@ -112,7 +84,7 @@
                             <td class="p-4">
                                 <div class="font-medium text-gray-800">{{ $produto->Nome }}</div>
                                 @if($produto->LinkMeuSite)
-                                    <a href="{{ $produto->LinkMeuSite }}" target="_blank" class="text-xs text-blue-600 hover:underline flex items-center mt-1">
+                                    <a href="{{ $produto->LinkMeuSite }}" target="_blank" class="text-xs text-blue-500 hover:underline flex items-center mt-1">
                                         Link Site <i data-lucide="external-link" class="w-3 h-3 ml-1"></i>
                                     </a>
                                 @endif

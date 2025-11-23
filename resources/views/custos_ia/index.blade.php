@@ -32,15 +32,16 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        
         <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <div class="flex justify-between items-start">
                 <div>
-                    <p class="text-sm font-medium text-gray-500">Tokens de Entrada (Input)</p>
-                    <h3 class="text-2xl font-bold text-gray-800 mt-2">{{ number_format($totalIn, 0, ',', '.') }}</h3>
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Input Tokens</p>
+                    <h3 class="text-xl font-bold text-gray-800 mt-1">{{ number_format($totalIn, 0, ',', '.') }}</h3>
                 </div>
                 <div class="p-2 bg-blue-50 rounded-lg text-blue-600">
-                    <i data-lucide="arrow-down-left" class="w-6 h-6"></i>
+                    <i data-lucide="arrow-down-left" class="w-5 h-5"></i>
                 </div>
             </div>
         </div>
@@ -48,11 +49,11 @@
         <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <div class="flex justify-between items-start">
                 <div>
-                    <p class="text-sm font-medium text-gray-500">Tokens de Saída (Output)</p>
-                    <h3 class="text-2xl font-bold text-gray-800 mt-2">{{ number_format($totalOut, 0, ',', '.') }}</h3>
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Output Tokens</p>
+                    <h3 class="text-xl font-bold text-gray-800 mt-1">{{ number_format($totalOut, 0, ',', '.') }}</h3>
                 </div>
                 <div class="p-2 bg-green-50 rounded-lg text-green-600">
-                    <i data-lucide="arrow-up-right" class="w-6 h-6"></i>
+                    <i data-lucide="arrow-up-right" class="w-5 h-5"></i>
                 </div>
             </div>
         </div>
@@ -60,14 +61,31 @@
         <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <div class="flex justify-between items-start">
                 <div>
-                    <p class="text-sm font-medium text-gray-500">Média Diária</p>
-                    <h3 class="text-2xl font-bold text-gray-800 mt-2">{{ number_format($mediaDiaria, 0, ',', '.') }}</h3>
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Média Diária</p>
+                    <h3 class="text-xl font-bold text-gray-800 mt-1">{{ number_format($mediaDiaria, 0, ',', '.') }}</h3>
                 </div>
                 <div class="p-2 bg-purple-50 rounded-lg text-purple-600">
-                    <i data-lucide="activity" class="w-6 h-6"></i>
+                    <i data-lucide="activity" class="w-5 h-5"></i>
                 </div>
             </div>
         </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 relative overflow-hidden">
+            <div class="absolute right-0 top-0 h-full w-1 bg-yellow-400"></div>
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-xs font-bold text-yellow-600 uppercase tracking-wider">Custo Estimado (R$)</p>
+                    <h3 class="text-2xl font-extrabold text-gray-800 mt-1">
+                        R$ {{ number_format($custoTotalBRL, 2, ',', '.') }}
+                    </h3>
+                    <p class="text-[10px] text-gray-400 mt-1">Cotação ref. US$ 1 = R$ 6,10</p>
+                </div>
+                <div class="p-2 bg-yellow-50 rounded-lg text-yellow-600">
+                    <i data-lucide="dollar-sign" class="w-5 h-5"></i>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
@@ -81,9 +99,10 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        lucide.createIcons();
+        
         const ctx = document.getElementById('tokensChart').getContext('2d');
         
-        // Dados injetados pelo Blade
         const labels = @json($graficoLabels);
         const dataIn = @json($graficoDataIn);
         const dataOut = @json($graficoDataOut);
@@ -96,13 +115,13 @@
                     {
                         label: 'Input Tokens',
                         data: dataIn,
-                        backgroundColor: '#3B82F6', // Azul
+                        backgroundColor: '#3B82F6',
                         borderRadius: 4,
                     },
                     {
                         label: 'Output Tokens',
                         data: dataOut,
-                        backgroundColor: '#10B981', // Verde
+                        backgroundColor: '#10B981',
                         borderRadius: 4,
                     }
                 ]
@@ -113,7 +132,7 @@
                 scales: {
                     y: {
                         beginAtZero: true,
-                        stacked: true, // Barras empilhadas (como no original)
+                        stacked: true,
                         grid: { color: '#f3f4f6' }
                     },
                     x: {
@@ -123,10 +142,7 @@
                 },
                 plugins: {
                     legend: { position: 'top' },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false,
-                    }
+                    tooltip: { mode: 'index', intersect: false }
                 }
             }
         });
