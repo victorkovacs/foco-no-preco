@@ -16,3 +16,29 @@
 body {
     font-family: var(--font-sans);
 }
+
+@layer components {
+    /* Estilo do Item Ativo no Menu */
+    .nav-item-active {
+        @apply bg-white/95 border-l-4 text-primary-dark font-semibold shadow-sm;
+        border-color: var(--color-highlight);
+    }
+    
+    .nav-item-active i {
+        color: var(--color-highlight);
+    }
+
+    /* Estilo dos Itens Inativos */
+    .nav-item-inactive {
+        @apply text-gray-300 hover:bg-black/20 hover:text-highlight transition-colors;
+    }
+
+    /* Scrollbar personalizada da Sidebar */
+    .sidebar-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+    .sidebar-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+}

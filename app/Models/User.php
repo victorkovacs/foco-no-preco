@@ -10,17 +10,22 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable; 
 
-    // CORRIGIDO: Mapeia para a sua tabela real 'Usuarios'
+    // 1. Nome da Tabela
     protected $table = 'Usuarios'; 
 
+    // 2. DESATIVAR TIMESTAMPS PADRÃO (A Correção do Erro)
+    // Isto impede o Laravel de procurar 'created_at' e 'updated_at'
+    public $timestamps = false;
+
+    // 3. Campos que podem ser preenchidos
     protected $fillable = [
         'email',
-        // O campo 'senha_hash' da sua tabela SQL
         'senha_hash', 
         'nivel_acesso',
         'ativo',
         'id_organizacao', 
         'api_key', 
+        // Removi 'data_criacao' daqui porque o MySQL preenche sozinho (DEFAULT CURRENT_TIMESTAMP)
     ];
 
     protected $hidden = [
@@ -28,7 +33,7 @@ class User extends Authenticatable
         'remember_token',
     ];
 
-    // CRÍTICO: Sobrescreve o método para usar a coluna 'senha_hash' na autenticação
+    // 4. Dizer ao Laravel que a senha está na coluna 'senha_hash'
     public function getAuthPassword()
     {
         return $this->senha_hash;

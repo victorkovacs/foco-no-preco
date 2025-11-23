@@ -11,16 +11,26 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('users', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
-            $table->rememberToken();
-            $table->timestamps();
+        // Cria a tabela 'Usuarios' (Respeitando o teu SQL antigo)
+        Schema::create('Usuarios', function (Blueprint $table) {
+            $table->id(); // id
+
+            // FK para Organizacoes (CRÍTICO: Organizacoes tem de existir antes)
+            $table->unsignedBigInteger('id_organizacao');
+            $table->foreign('id_organizacao', 'fk_usuario_organizacao')
+                  ->references('id_organizacao')
+                  ->on('Organizacoes')
+                  ->onDelete('cascade');
+
+            $table->string('email', 100)->unique();
+            $table->string('senha_hash', 255); // A tua coluna de senha
+            $table->timestamp('data_criacao')->useCurrent(); // O teu timestamp
+            $table->integer('nivel_acesso')->nullable();
+            $table->boolean('ativo')->default(1);
+            $table->string('api_key', 100)->nullable();
         });
 
+        // Tabelas de suporte do Laravel (Recomendado manter)
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();
             $table->string('token');
@@ -42,7 +52,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('users');
+        Schema::dropIfExists('Usuarios');
         Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
     }
