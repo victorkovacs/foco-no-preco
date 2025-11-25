@@ -7,38 +7,36 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     public function up(): void
-{
-    Schema::create('Produtos', function (Blueprint $table) {
-        // ID (PK)
-        $table->id('ID'); // No teu SQL é ID maiúsculo
-        
-        // FK Organizacao
-        $table->unsignedBigInteger('id_organizacao');
-        $table->foreign('id_organizacao')->references('id_organizacao')->on('Organizacoes')->onDelete('cascade');
+    {
+        Schema::create('Produtos', function (Blueprint $table) {
+            // ID (PK)
+            $table->id('ID'); // No teu SQL é ID maiúsculo
 
-        $table->string('SKU', 100);
-        $table->string('Nome', 255)->nullable();
-        $table->text('LinkPesquisa')->nullable();
-        $table->text('LinkMeuSite')->nullable();
-        $table->string('marca', 100)->nullable();
-        $table->string('Categoria', 100)->nullable();
-        $table->string('SubCategoria', 100)->nullable();
-        
-        // ADIÇÃO CRÍTICA: O teu script de dashboard pede 'PrecoVenda', 
-        // mas ele não estava no SQL original. Vou adicionar para evitar erros.
-        $table->decimal('PrecoVenda', 10, 2)->nullable(); 
+            // FK Organizacao
+            $table->unsignedBigInteger('id_organizacao');
+            $table->foreign('id_organizacao')->references('id_organizacao')->on('Organizacoes')->onDelete('cascade');
 
-        $table->boolean('EncontrouConcorrentes')->default(0);
-        $table->boolean('ativo')->default(0); // Notei que no SQL é 'ativo' minúsculo aqui
-        $table->boolean('ia_processado')->default(0);
+            $table->string('SKU', 100);
+            $table->string('Nome', 255)->nullable();
+            $table->text('LinkPesquisa')->nullable();
+            $table->text('LinkMeuSite')->nullable();
+            $table->string('marca', 100)->nullable();
+            $table->string('Categoria', 100)->nullable();
+            $table->string('SubCategoria', 100)->nullable();
 
-        // Índice único por organização
-        $table->unique(['id_organizacao', 'SKU'], 'uk_org_sku');
-    });
-}
+            // ⚠️ COLUNA 'PrecoVenda' REMOVIDA
 
-public function down(): void
-{
-    Schema::dropIfExists('Produtos');
-}
+            $table->boolean('EncontrouConcorrentes')->default(0);
+            $table->boolean('ativo')->default(0); // Notei que no SQL é 'ativo' minúsculo aqui
+            $table->boolean('ia_processado')->default(0);
+
+            // Índice único por organização
+            $table->unique(['id_organizacao', 'SKU'], 'uk_org_sku');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('Produtos');
+    }
 };

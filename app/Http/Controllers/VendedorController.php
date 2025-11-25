@@ -12,16 +12,12 @@ class VendedorController extends Controller
     {
         $id_organizacao = Auth::user()->id_organizacao;
 
-        // 1. Query Base
         $query = Vendedor::where('id_organizacao', $id_organizacao);
 
-        // 2. Filtro de Pesquisa (Nome)
         if ($request->filled('search')) {
             $query->where('NomeVendedor', 'like', '%' . $request->search . '%');
         }
 
-        // 3. Filtro de Status (ativos/inativos)
-        // O teu script usa 'todos', 'ativos', 'inativos'
         if ($request->filled('filter_status')) {
             if ($request->filter_status === 'ativos') {
                 $query->where('Ativo', 1);
@@ -30,20 +26,51 @@ class VendedorController extends Controller
             }
         }
 
-        // 4. Ordenação
-        // Padrão do teu script: 'Ativo' DESC
         $sortColumn = $request->get('sort', 'Ativo');
         $sortDirection = $request->get('dir', 'DESC');
-
         $allowedColumns = ['ID_Vendedor', 'NomeVendedor', 'SeletorPreco', 'Ativo', 'PercentualDescontoAVista', 'SeletorMarca', 'FiltroLinkProduto'];
 
         if (in_array($sortColumn, $allowedColumns)) {
             $query->orderBy($sortColumn, $sortDirection);
         }
 
-        // 5. Paginação (15 por página, conforme o original)
         $vendedores = $query->paginate(15)->withQueryString();
 
         return view('vendedores.index', compact('vendedores'));
+    }
+
+    // NOVO MÉTODO: Atualiza o vendedor via AJAX (Modal)
+    public function update(Request $request, $id)
+    {
+        $id_organizacao = Auth::user()->id_organizacao;
+
+        // 1. Validação
+        $request->validate([
+            'SeletorPreco' => 'nullable|string|max:255',
+            'PercentualDescontoAVista' => 'nullable|numeric|min:0|max:100',
+            'FiltroLinkProduto' => 'nullable|string|max:255',
+            'LinkConcorrente' => 'nullable|url|max:255',
+            'Ativo' => 'required|in:0,1',
+        ]);
+
+        // 2. Busca o Vendedor (Garante que pertence à organização)
+        $vendedor = Vendedor::where('ID_Vendedor', $id)
+            ->where('id_organizacao', $id_organizacao)
+            ->firstOrFail();
+
+        // 3. Atualiza os dados
+        $vendedor->SeletorPreco = $request->SeletorPreco;
+        $vendedor->PercentualDescontoAVista = $request->PercentualDescontoAVista;
+        $vendedor->FiltroLinkProduto = $request->FiltroLinkProduto;
+        $vendedor->LinkConcorrente = $request->LinkConcorrente;
+        $vendedor->Ativo = (int)$request->Ativo;
+
+        $vendedor->save();
+
+        // 4. Retorna JSON para o JavaScript do modal
+        return response()->json([
+            'success' => true,
+            'message' => 'Concorrente atualizado com sucesso!'
+        ]);
     }
 }

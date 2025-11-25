@@ -8,10 +8,10 @@ use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable; 
+    use HasFactory, Notifiable;
 
     // 1. Nome da Tabela
-    protected $table = 'Usuarios'; 
+    protected $table = 'usuarios';
 
     // 2. DESATIVAR TIMESTAMPS PADRÃO (A Correção do Erro)
     // Isto impede o Laravel de procurar 'created_at' e 'updated_at'
@@ -20,16 +20,16 @@ class User extends Authenticatable
     // 3. Campos que podem ser preenchidos
     protected $fillable = [
         'email',
-        'senha_hash', 
+        'senha_hash',
         'nivel_acesso',
         'ativo',
-        'id_organizacao', 
-        'api_key', 
+        'id_organizacao',
+        'api_key',
         // Removi 'data_criacao' daqui porque o MySQL preenche sozinho (DEFAULT CURRENT_TIMESTAMP)
     ];
 
     protected $hidden = [
-        'senha_hash', 
+        'senha_hash',
         'remember_token',
     ];
 

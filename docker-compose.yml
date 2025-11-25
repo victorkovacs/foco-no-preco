@@ -38,14 +38,21 @@ services:
     environment:
       MYSQL_DATABASE: ${DB_DATABASE}
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-      MYSQL_USER: ${DB_USERNAME}
+      # --- CORREÇÃO: REMOVIDO PARA EVITAR CONFLITO COM ROOT ---
+      # MYSQL_USER: ${DB_USERNAME}
+      # MYSQL_PASSWORD: ${DB_PASSWORD}
     ports:
       - "3306:3306"
     volumes:
       - dbdata:/var/lib/mysql
     networks:
       - foconopreco-network
+    # Monitora se o banco realmente ligou antes de liberar os robôs
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 20s
+      retries: 10
 
   # --- 4. PHPMYADMIN (VISUALIZADOR DO BANCO) ---
   phpmyadmin:
@@ -53,7 +60,7 @@ services:
     container_name: foconopreco_pma
     environment:
       PMA_HOST: db
-      PMA_USER: ${DB_USERNAME}
+      PMA_USER: root
       PMA_PASSWORD: ${DB_PASSWORD}
       UPLOAD_LIMIT: 64M
     ports:
@@ -72,6 +79,11 @@ services:
       - "6379:6379"
     networks:
       - foconopreco-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
 
   # --- 6. ROBÔS PYTHON (INTEGRADOS) ---
   
@@ -88,8 +100,10 @@ services:
       - DB_HOST=db
       - REDIS_URL=redis://redis:6379
     depends_on:
-      - redis
-      - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - foconopreco-network
@@ -107,8 +121,10 @@ services:
       - DB_HOST=db
       - REDIS_URL=redis://redis:6379
     depends_on:
-      - redis
-      - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - foconopreco-network
@@ -126,8 +142,10 @@ services:
       - DB_HOST=db
       - REDIS_URL=redis://redis:6379
     depends_on:
-      - redis
-      - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - foconopreco-network
@@ -145,8 +163,10 @@ services:
       - DB_HOST=db
       - REDIS_URL=redis://redis:6379
     depends_on:
-      - redis
-      - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - foconopreco-network
@@ -164,8 +184,10 @@ services:
       - DB_HOST=db
       - REDIS_URL=redis://redis:6379
     depends_on:
-      - redis
-      - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - foconopreco-network
@@ -183,8 +205,10 @@ services:
       - DB_HOST=db
       - REDIS_URL=redis://redis:6379
     depends_on:
-      - redis
-      - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - foconopreco-network
@@ -202,21 +226,15 @@ services:
       - DB_HOST=db
       - REDIS_URL=redis://redis:6379
     depends_on:
-      - redis
-      - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - foconopreco-network
 
-networks:
-  foconopreco-network:
-    driver: bridge
-
-volumes:
-  dbdata:
-    driver: local
-
-    # --- ROBÔ DE BACKUP (Google Drive) ---
+  # --- 7. ROBÔ DE BACKUP (GOOGLE DRIVE) ---
   worker_backup:
     build:
       context: .
@@ -230,13 +248,17 @@ volumes:
     environment:
       - DB_HOST=db
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - foconopreco-network
-    
-    # --- ADICIONE ESTAS LINHAS AQUI EMBAIXO ---
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
-      
+
+# --- REDES E VOLUMES ---
+networks:
+  foconopreco-network:
+    driver: bridge
+
+volumes:
+  dbdata:
+    driver: local

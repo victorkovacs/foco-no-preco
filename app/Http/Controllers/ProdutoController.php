@@ -9,19 +9,11 @@ use Illuminate\Support\Facades\DB;
 
 class ProdutoController extends Controller
 {
-    /**
-     * 1. TELA MEUS PRODUTOS (Foco em Monitoramento)
-     * Lista produtos ativos com termômetros e opção de monitorar.
-     */
     public function index(Request $request)
     {
         $id_organizacao = Auth::user()->id_organizacao;
+        $query = Produto::where('id_organizacao', $id_organizacao)->where('ativo', 1);
 
-        // Filtra apenas produtos ativos para esta tela
-        $query = Produto::where('id_organizacao', $id_organizacao)
-            ->where('ativo', 1);
-
-        // Filtros de Busca (SKU, Nome, Marca)
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
@@ -31,12 +23,10 @@ class ProdutoController extends Controller
             });
         }
 
-        // Filtro de Marca
         if ($request->filled('filter_marca')) {
             $query->where('marca', $request->filter_marca);
         }
 
-        // Ordenação
         $sortColumn = $request->get('sort', 'Nome');
         $sortDirection = $request->get('dir', 'asc');
         $allowedColumns = ['SKU', 'Nome', 'marca', 'LinkMeuSite'];
@@ -45,29 +35,15 @@ class ProdutoController extends Controller
             $query->orderBy($sortColumn, $sortDirection);
         }
 
-        // Paginação
         $produtos = $query->paginate(10)->withQueryString();
-
-        // Lista de marcas para o Dropdown
-        $marcas = Produto::where('id_organizacao', $id_organizacao)
-            ->where('ativo', 1)
-            ->whereNotNull('marca')
-            ->distinct()
-            ->orderBy('marca')
-            ->pluck('marca');
+        $marcas = Produto::where('id_organizacao', $id_organizacao)->where('ativo', 1)->whereNotNull('marca')->distinct()->orderBy('marca')->pluck('marca');
 
         return view('produtos.index', compact('produtos', 'marcas'));
     }
 
-    /**
-     * 2. TELA DE GESTÃO (Edição/Cadastro)
-     * Lista todos os produtos (ativos e inativos) para administração.
-     */
     public function gerenciar(Request $request)
     {
         $id_organizacao = Auth::user()->id_organizacao;
-
-        // Aqui trazemos todos (ativos e inativos)
         $query = Produto::where('id_organizacao', $id_organizacao);
 
         if ($request->filled('search')) {
@@ -91,20 +67,11 @@ class ProdutoController extends Controller
         }
 
         $produtos = $query->paginate(10)->withQueryString();
-
-        $marcas = Produto::where('id_organizacao', $id_organizacao)
-            ->whereNotNull('marca')
-            ->distinct()
-            ->orderBy('marca')
-            ->pluck('marca');
+        $marcas = Produto::where('id_organizacao', $id_organizacao)->whereNotNull('marca')->distinct()->orderBy('marca')->pluck('marca');
 
         return view('produtos.gerenciar', compact('produtos', 'marcas'));
     }
 
-    /**
-     * 3. DADOS DO GRÁFICO (JSON para o Modal)
-     * Substitui a antiga 'api_concorrentes.php'
-     */
     public function getDadosGrafico(Request $request)
     {
         $id_organizacao = Auth::user()->id_organizacao;
@@ -112,122 +79,132 @@ class ProdutoController extends Controller
         $data_inicio = $request->data_inicio;
         $data_fim = $request->data_fim;
 
-        // Busca histórico na tabela 'concorrentes' fazendo JOIN com 'Vendedores'
         $dados = DB::table('concorrentes as c')
-            ->join('Vendedores as v', 'c.ID_Vendedor', '=', 'v.ID_Vendedor')
+            ->leftJoin('vendedores as v', 'c.ID_Vendedor', '=', 'v.ID_Vendedor')
+            ->leftJoin('links_externos as l', 'c.id_link_externo', '=', 'l.id')
             ->where('c.id_organizacao', $id_organizacao)
             ->where('c.sku', $sku)
             ->whereBetween('c.data_extracao', [$data_inicio . ' 00:00:00', $data_fim . ' 23:59:59'])
-            ->select(
-                'v.NomeVendedor as vendedor',
-                'c.preco',
-                'c.data_extracao',
-                'v.LinkConcorrente as link'
-            )
+            ->select('v.NomeVendedor as vendedor', 'c.preco', 'c.data_extracao', 'l.link as link_concorrente')
             ->orderBy('c.data_extracao', 'asc')
             ->get();
 
-        return response()->json([
-            'success' => true,
-            'data' => $dados
-        ]);
+        return response()->json(['success' => true, 'data' => $dados]);
     }
 
-    /**
-     * 4. INICIAR MONITORAMENTO (Ação do Botão)
-     * [CORREÇÃO APLICADA]: Define EncontrouConcorrentes=1 e Ativo=1.
-     */
     public function iniciarMonitoramento(Request $request)
     {
-        // Validação
+        $request->validate(['sku' => 'required|string', 'link' => 'nullable|url']);
+        $id_organizacao = Auth::user()->id_organizacao;
+        $produto = Produto::where('id_organizacao', $id_organizacao)->where('SKU', $request->sku)->first();
+
+        if (!$produto) return response()->json(['success' => false, 'message' => 'Produto não encontrado.'], 404);
+
+        $produto->EncontrouConcorrentes = 1;
+        $produto->ativo = 1;
+        if ($request->filled('link')) $produto->LinkPesquisa = $request->link;
+        $produto->save();
+
+        return response()->json(['success' => true, 'message' => 'Monitoramento iniciado com sucesso!']);
+    }
+
+    public function edit($id)
+    {
+        $id_organizacao = Auth::user()->id_organizacao;
+        $produto = Produto::where('id_organizacao', $id_organizacao)->where('ID', $id)->firstOrFail();
+
+        $alvos = DB::table('alvosmonitoramento as a')
+            ->leftJoin('links_externos as l', 'a.id_link_externo', '=', 'l.id')
+            ->leftJoin('vendedores as v', 'l.ID_Vendedor', '=', 'v.ID_Vendedor')
+            ->where('a.ID_Produto', $id)
+            ->select('a.id_alvo as ID_Alvo', 'v.NomeVendedor', 'l.link', 'a.id_link_externo')
+            ->get();
+
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json(['success' => true, 'produto' => $produto, 'alvos' => $alvos]);
+        }
+
+        return view('produtos.editar', compact('produto', 'alvos'));
+    }
+
+    public function update(Request $request, $id)
+    {
+        // Validação com retorno JSON automático em caso de erro se AJAX
         $request->validate([
-            'sku' => 'required|string',
-            'link' => 'nullable|url'
+            'Nome' => 'required|string|max:255',
+            'marca' => 'nullable|string|max:255',
+            'Categoria' => 'nullable|string|max:255',
+            'LinkMeuSite' => 'nullable|url',
+            'ativo' => 'required|in:0,1',
         ]);
 
         $id_organizacao = Auth::user()->id_organizacao;
+        $produto = Produto::where('id_organizacao', $id_organizacao)->where('ID', $id)->firstOrFail();
 
-        // Busca o produto
-        $produto = Produto::where('id_organizacao', $id_organizacao)
-            ->where('SKU', $request->sku)
-            ->first();
-
-        if (!$produto) {
-            return response()->json(['success' => false, 'message' => 'Produto não encontrado.'], 404);
-        }
-
-        // --- LÓGICA FIEL AO ORIGINAL ---
-        $produto->EncontrouConcorrentes = 1; // Ativa flag de concorrência
-        $produto->ativo = 1; // Força o produto a ficar ativo (essencial para o robô)
-
-        // Se o usuário informou um link, atualiza
-        if ($request->filled('link')) {
-            $produto->LinkPesquisa = $request->link;
-        }
-
+        $produto->Nome = $request->Nome;
+        $produto->marca = $request->marca;
+        $produto->Categoria = $request->Categoria;
+        $produto->LinkMeuSite = $request->LinkMeuSite;
+        $produto->ativo = (int)$request->ativo;
         $produto->save();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Monitoramento iniciado com sucesso!'
-        ]);
+        // CORREÇÃO: Retorna JSON se for chamado via AJAX
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Produto atualizado com sucesso!'
+            ]);
+        }
+
+        return redirect()->route('produtos.gerenciar')->with('success', 'Produto atualizado com sucesso!');
     }
 
-    /**
-     * 5. EXCLUIR PRODUTO
-     */
+    public function updateAlvoLink(Request $request, $idAlvo)
+    {
+        $id_organizacao = Auth::user()->id_organizacao;
+        $request->validate(['novo_link' => 'required|url']);
+
+        $alvo = DB::table('alvosmonitoramento')
+            ->where('id_alvo', $idAlvo)
+            ->where('id_organizacao', $id_organizacao)
+            ->select('id_link_externo')
+            ->first();
+
+        if (!$alvo || !$alvo->id_link_externo) {
+            return response()->json(['success' => false, 'message' => 'Alvo ou Link não encontrado.'], 404);
+        }
+
+        DB::table('links_externos')
+            ->where('id', $alvo->id_link_externo)
+            ->update(['link' => $request->novo_link, 'data_ultima_verificacao' => now()]);
+
+        return response()->json(['success' => true, 'message' => 'Link do concorrente atualizado com sucesso.']);
+    }
+
     public function destroy($id)
     {
         $id_organizacao = Auth::user()->id_organizacao;
-
-        $produto = Produto::where('id_organizacao', $id_organizacao)
-            ->where('ID', $id)
-            ->firstOrFail();
-
+        $produto = Produto::where('id_organizacao', $id_organizacao)->where('ID', $id)->firstOrFail();
         $produto->delete();
-
-        return redirect()->route('produtos.gerenciar')
-            ->with('success', 'Produto excluído com sucesso!');
+        return redirect()->route('produtos.gerenciar')->with('success', 'Produto excluído com sucesso!');
     }
 
-    // --- ATUALIZAÇÃO EM MASSA (Formulário) ---
     public function massUpdateForm()
     {
         return view('produtos.atualizar_em_massa');
     }
 
-    // --- ATUALIZAÇÃO EM MASSA (Processamento) ---
     public function massUpdateProcess(Request $request)
     {
-        $request->validate([
-            'skus' => 'required|string',
-            'novo_status' => 'required|boolean'
-        ]);
-
+        $request->validate(['skus' => 'required|string', 'novo_status' => 'required|boolean']);
         $id_organizacao = Auth::user()->id_organizacao;
-        $novo_status = $request->novo_status;
+        $skus = array_map('trim', preg_split('/[\s,]+/', $request->skus, -1, PREG_SPLIT_NO_EMPTY));
 
-        // 1. Processar a lista de SKUs (separar por quebra de linha ou vírgula)
-        $raw_skus = $request->skus;
-        $skus = preg_split('/[\s,]+/', $raw_skus, -1, PREG_SPLIT_NO_EMPTY);
-        $skus = array_map('trim', $skus); // Remove espaços extras
+        if (empty($skus)) return back()->with('error', 'Nenhum SKU válido informado.');
 
-        if (empty($skus)) {
-            return back()->with('error', 'Nenhum SKU válido foi informado.');
-        }
+        $affected = Produto::where('id_organizacao', $id_organizacao)->whereIn('SKU', $skus)->update(['ativo' => $request->novo_status]);
 
-        // 2. Atualizar no Banco
-        $affected = Produto::where('id_organizacao', $id_organizacao)
-            ->whereIn('SKU', $skus)
-            ->update(['ativo' => $novo_status]);
-
-        // 3. Retornar com mensagem
-        $msg = $affected . ' produtos foram atualizados para ' . ($novo_status ? 'ATIVO' : 'INATIVO') . '.';
-
-        if ($affected == 0) {
-            return back()->with('error', 'Nenhum produto encontrado com os SKUs informados.');
-        }
-
-        return back()->with('success', $msg);
+        if ($affected == 0) return back()->with('error', 'Nenhum produto encontrado.');
+        return back()->with('success', "$affected produtos atualizados.");
     }
 }

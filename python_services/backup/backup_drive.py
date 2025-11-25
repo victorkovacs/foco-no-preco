@@ -1,107 +1,98 @@
 import os
 import time
 import datetime
-import subprocess
+import sys
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
 # --- CONFIGURAÇÕES ---
-
-# ID DA PASTA NO GOOGLE DRIVE (Extraído do seu link)
 FOLDER_ID = '1JtSFMzG189AaxkgTataV-6H2w7abl3hK' 
-
-# Caminho para o arquivo de credenciais (Dentro do Docker)
+NOME_ARQUIVO_FIXO = 'backup_foconopreco_db.sql'
 SERVICE_ACCOUNT_FILE = '/app/service_account.json'
 
-# Dados do Banco (Lidos das variáveis de ambiente do Docker)
+# Dados do Banco
 DB_HOST = os.getenv('DB_HOST', 'db')
 DB_USER = os.getenv('DB_USERNAME', 'root')
-DB_PASS = os.getenv('DB_PASSWORD', '12345678')
+DB_PASS = os.getenv('DB_PASSWORD', 'secret123')
 DB_NAME = os.getenv('DB_DATABASE', 'foconopreco')
 
 SCOPES = ['https://www.googleapis.com/auth/drive']
 
 def criar_dump_sql():
-    """
-    Gera um arquivo .sql com o backup do banco de dados localmente.
-    """
-    data_hoje = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
-    nome_arquivo = f"backup_{DB_NAME}_{data_hoje}.sql"
-    caminho_completo = f"/tmp/{nome_arquivo}"
-
-    print(f"[BACKUP] Criando dump do banco '{DB_NAME}'...")
+    # Cria arquivo local temporário
+    caminho_completo = f"/tmp/{NOME_ARQUIVO_FIXO}"
+    print(f"[BACKUP] Gerando dump SQL em {caminho_completo}...")
     
-    # Comando mysqldump (ferramenta oficial do MySQL)
-    # Importante: Não deixa espaço entre -p e a senha
-    cmd = f"mysqldump -h {DB_HOST} -u {DB_USER} -p{DB_PASS} {DB_NAME} > {caminho_completo}"
+    # --skip-ssl para evitar erro de certificado no Docker
+    cmd = f"mysqldump --skip-ssl -h {DB_HOST} -u {DB_USER} -p{DB_PASS} {DB_NAME} > {caminho_completo}"
     
-    # Executa o comando no sistema Linux do container
     retorno = os.system(cmd)
-    
     if retorno == 0:
-        print(f"[BACKUP] Dump criado com sucesso: {caminho_completo}")
-        return caminho_completo, nome_arquivo
+        return caminho_completo
     else:
-        print("[BACKUP] ERRO ao criar dump do banco. Verifique as credenciais.")
-        return None, None
+        print(f"[BACKUP] ❌ Erro (Cód {retorno}) ao gerar dump MySQL.")
+        return None
 
-def upload_para_drive(caminho_arquivo, nome_arquivo):
-    """
-    Envia o arquivo gerado para a pasta do Google Drive.
-    """
+def buscar_arquivo_existente(service):
+    """Procura o ID do arquivo que vamos sobrescrever"""
+    query = f"name = '{NOME_ARQUIVO_FIXO}' and '{FOLDER_ID}' in parents and trashed = false"
+    results = service.files().list(q=query, fields="files(id, name)").execute()
+    items = results.get('files', [])
+    
+    if not items:
+        return None
+    return items[0]['id']
+
+def atualizar_drive(caminho_local):
     if not os.path.exists(SERVICE_ACCOUNT_FILE):
-        print(f"[BACKUP] Erro Crítico: Arquivo de credenciais não encontrado em {SERVICE_ACCOUNT_FILE}")
-        print("Verifique se você renomeou para 'service_account.json' e colocou na raiz.")
+        print("[BACKUP] ❌ Arquivo service_account.json não encontrado.")
         return
 
-    print("[BACKUP] Autenticando no Google Drive...")
     try:
         creds = service_account.Credentials.from_service_account_file(
             SERVICE_ACCOUNT_FILE, scopes=SCOPES
         )
         service = build('drive', 'v3', credentials=creds)
 
-        file_metadata = {
-            'name': nome_arquivo,
-            'parents': [FOLDER_ID]
-        }
-        media = MediaFileUpload(caminho_arquivo, mimetype='application/sql')
+        # 1. Procura o arquivo placeholder
+        file_id = buscar_arquivo_existente(service)
+        
+        if not file_id:
+            print(f"[BACKUP] ⚠️ ARQUIVO NÃO ENCONTRADO NO DRIVE!")
+            print(f"   Por favor, crie um arquivo vazio chamado '{NOME_ARQUIVO_FIXO}' dentro da pasta do ID '{FOLDER_ID}'.")
+            print("   O robô precisa atualizar um arquivo existente para usar sua cota de armazenamento.")
+            return
 
-        print(f"[BACKUP] Iniciando upload de {nome_arquivo}...")
-        file = service.files().create(
-            body=file_metadata,
+        # 2. Atualiza o conteúdo (Cria nova versão no histórico)
+        print(f"[BACKUP] Atualizando arquivo (ID: {file_id})...")
+        
+        media = MediaFileUpload(caminho_local, mimetype='application/sql', resumable=True)
+        
+        # Usa método update em vez de create
+        arquivo_atualizado = service.files().update(
+            fileId=file_id,
             media_body=media,
-            fields='id'
+            fields='id, version'
         ).execute()
 
-        print(f"[BACKUP] ✅ Sucesso! Backup enviado. ID do Arquivo: {file.get('id')}")
-        
+        print(f"[BACKUP] ✅ SUCESSO! Backup atualizado. Versão Drive: {arquivo_atualizado.get('version')}")
+
     except Exception as e:
-        print(f"[BACKUP] ❌ Falha na conexão com o Google Drive: {e}")
+        print(f"[BACKUP] ❌ Erro na API do Drive: {e}")
 
 def main():
-    print("--- INICIANDO ROTINA DE BACKUP AUTOMÁTICO ---")
+    print("--- INICIANDO BACKUP (MÉTODO ATUALIZAÇÃO) ---")
+    arquivo_sql = criar_dump_sql()
     
-    # 1. Cria o arquivo SQL localmente
-    caminho, nome = criar_dump_sql()
-    
-    if caminho:
-        try:
-            # 2. Sobe para o Drive
-            upload_para_drive(caminho, nome)
-        except Exception as e:
-            print(f"[BACKUP] Erro inesperado no processo: {e}")
-        finally:
-            # 3. Limpa o arquivo local para não encher o disco do container
-            if os.path.exists(caminho):
-                os.remove(caminho)
-                print("[BACKUP] Arquivo temporário removido do servidor.")
+    if arquivo_sql:
+        atualizar_drive(arquivo_sql)
+        if os.path.exists(arquivo_sql):
+            os.remove(arquivo_sql)
 
 if __name__ == '__main__':
-    # Loop infinito para rodar a cada 24 horas (86400 segundos)
     print("[SISTEMA] Robô de Backup iniciado.")
     while True:
         main()
-        print("[SISTEMA] Dormindo por 24 horas até o próximo backup...")
+        print("[SISTEMA] Aguardando 24h...")
         time.sleep(86400)

@@ -10,7 +10,7 @@ class Produto extends Model
     use HasFactory;
 
     // Configuração para bater com teu banco legado
-    protected $table = 'Produtos';
+    protected $table = 'produtos';
     protected $primaryKey = 'ID';
     public $timestamps = false; // Não tens created_at/updated_at nesta tabela
 

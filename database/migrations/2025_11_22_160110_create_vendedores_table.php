@@ -7,24 +7,33 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     public function up(): void
-{
-    Schema::create('Vendedores', function (Blueprint $table) {
-        $table->id('ID_Vendedor');
-        
-        $table->unsignedBigInteger('id_organizacao');
-        $table->foreign('id_organizacao')->references('id_organizacao')->on('Organizacoes')->onDelete('cascade');
+    {
+        Schema::create('Vendedores', function (Blueprint $table) {
+            $table->id('ID_Vendedor');
 
-        $table->string('NomeVendedor', 255);
-        $table->string('SeletorPreco', 255)->nullable();
-        $table->boolean('Ativo')->default(0);
-        $table->decimal('PercentualDescontoAVista', 5, 2)->nullable();
-        $table->string('SeletorMarca', 255)->nullable();
-        $table->string('LinkConcorrente', 255)->nullable();
-    });
-}
+            $table->unsignedBigInteger('id_organizacao');
+            $table->foreign('id_organizacao')->references('id_organizacao')->on('Organizacoes')->onDelete('cascade');
 
-public function down(): void
-{
-    Schema::dropIfExists('Vendedores');
-}
+            $table->string('NomeVendedor', 255);
+            $table->string('SeletorPreco', 255)->nullable();
+            $table->boolean('Ativo')->default(0);
+            $table->decimal('PercentualDescontoAVista', 5, 2)->nullable();
+
+            // 🚨 COLUNAS CRÍTICAS ADICIONADAS (Elas estavam no seu SQL antigo e faltavam aqui)
+            $table->string('SeletorMarca', 255)->nullable();
+            $table->string('seletorNomeBusca', 255)->nullable(); // Coluna que causou o erro #1054
+            $table->string('LinkConcorrente', 255)->nullable();
+            $table->string('FiltroLinkProduto', 255)->nullable()->comment('Padrão de texto para identificar um link de produto no sitemap (ex: /p/ ou .html)');
+            // --------------------------------------------------------------------------------
+
+            // Índices de unicidade (uk_org_nome_vendedor) e performance (idx_org_ativo) do SQL original
+            $table->unique(['id_organizacao', 'NomeVendedor'], 'uk_org_nome_vendedor');
+            $table->index(['id_organizacao', 'Ativo'], 'idx_org_ativo');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('Vendedores');
+    }
 };

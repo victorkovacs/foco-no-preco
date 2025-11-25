@@ -40,21 +40,28 @@ Route::middleware('auth')->group(function () {
 
     // Produtos (Gestão)
     Route::get('/produtos/gerenciar', [ProdutoController::class, 'gerenciar'])->name('produtos.gerenciar');
-    Route::delete('/produtos/{id}', [ProdutoController::class, 'destroy'])->name('produtos.destroy');
 
-    // Produtos (Atualização em Massa)
+    // Produtos (Atualização em Massa) - IMPORTANTE: Antes das rotas com {id}
     Route::get('/produtos/massa', [ProdutoController::class, 'massUpdateForm'])->name('produtos.mass_update');
     Route::post('/produtos/massa', [ProdutoController::class, 'massUpdateProcess'])->name('produtos.mass_update_process');
 
+    // Produtos (Rotas Específicas)
+    Route::put('/produtos/alvo/{idAlvo}/link', [ProdutoController::class, 'updateAlvoLink'])->name('produtos.alvos.update');
+
+    // Produtos (Edição/Exclusão com {id})
+    Route::get('/produtos/{id}/fetch', [ProdutoController::class, 'edit'])->name('produtos.fetch');
+    Route::get('/produtos/{id}/editar', [ProdutoController::class, 'edit'])->name('produtos.edit');
+    Route::put('/produtos/{id}', [ProdutoController::class, 'update'])->name('produtos.update');
+    Route::delete('/produtos/{id}', [ProdutoController::class, 'destroy'])->name('produtos.destroy');
+
     // Produtos (Painel de Conteúdo / Cadastro)
-    // Nota: Se usaste 'ProdutoDashboardController' antes, ajusta aqui. 
-    // Vou manter no ProdutoController para simplificar, ou usar o Controller específico se o criaste.
-    // Como criámos o 'ProdutoDashboardController' num passo anterior, vamos usá-lo:
     Route::get('/produtos/conteudo', [\App\Http\Controllers\ProdutoDashboardController::class, 'index'])->name('produtos_dashboard.index');
     Route::post('/produtos/conteudo', [\App\Http\Controllers\ProdutoDashboardController::class, 'store'])->name('produtos_dashboard.store');
 
-    // Concorrentes
+    // Concorrentes (Vendedores) - CORRIGIDO AQUI
     Route::get('/concorrentes', [VendedorController::class, 'index'])->name('concorrentes.index');
+    // ADICIONADO: Rota para atualizar concorrente
+    Route::put('/concorrentes/{id}', [VendedorController::class, 'update'])->name('concorrentes.update');
 
     // Curadoria
     Route::get('/curadoria', [CuradoriaController::class, 'index'])->name('curadoria.index');

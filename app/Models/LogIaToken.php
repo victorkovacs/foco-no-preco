@@ -9,7 +9,7 @@ class LogIaToken extends Model
 {
     use HasFactory;
 
-    protected $table = 'LogIaTokensSimples';
+    protected $table = 'logiatokenssimples';
     public $timestamps = false;
 
     protected $fillable = [
