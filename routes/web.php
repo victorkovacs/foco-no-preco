@@ -58,6 +58,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/produtos/conteudo', [\App\Http\Controllers\ProdutoDashboardController::class, 'index'])->name('produtos_dashboard.index');
     Route::post('/produtos/conteudo', [\App\Http\Controllers\ProdutoDashboardController::class, 'store'])->name('produtos_dashboard.store');
 
+    // NOVA ROTA: Envio em Massa para a Fila
+    Route::post('/produtos/conteudo/processar', [\App\Http\Controllers\ProdutoDashboardController::class, 'sendBatch'])->name('produtos_dashboard.processar');
+
     // Concorrentes (Vendedores) - CORRIGIDO AQUI
     Route::get('/concorrentes', [VendedorController::class, 'index'])->name('concorrentes.index');
     // ADICIONADO: Rota para atualizar concorrente

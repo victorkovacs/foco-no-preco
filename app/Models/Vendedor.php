@@ -9,7 +9,7 @@ class Vendedor extends Model
 {
     use HasFactory;
 
-    protected $table = 'vendedores'; // Nome exato da tabela no banco
+    protected $table = 'Vendedores'; // Nome exato da tabela no banco
     protected $primaryKey = 'ID_Vendedor'; // Chave primária personalizada
     public $timestamps = false; // Tabela não tem created_at/updated_at
 

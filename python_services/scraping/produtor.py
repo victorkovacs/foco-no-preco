@@ -2,30 +2,26 @@ import time
 import sys
 import mysql.connector
 
-# --- AJUSTE DE IMPORTAÇÃO (Padrão Docker) ---
+# --- IMPORTS PADRÃO DOCKER ---
 from python_services.scraping.celery_app import celery_app
 from python_services.scraping.worker import tarefa_scrape
 from python_services.shared.conectar_banco import criar_conexao_db
 
 # Configuração
 ID_ORGANIZACAO_PADRAO = 1
-INTERVALO_ENTRE_CICLOS = 600 # 10 minutos (ajuste conforme necessidade)
+INTERVALO_ENTRE_CICLOS = 600 # 10 minutos
 
 def buscar_alvos_para_fila(conn, id_org):
-    """
-    Busca alvos ativos no banco de dados para a organização especificada.
-    Recupera: Link, Seletores, Vendedor, Produto e Descontos.
-    """
     cursor = conn.cursor(dictionary=True)
     
-    # Query SQL completa baseada no seu arquivo original
+    # CORREÇÃO: l.url -> l.link
     query = """
     SELECT 
         a.id_alvo, 
         a.id_organizacao,
         p.SKU as sku,
         l.id as id_link_externo,
-        l.url as link_a_usar,
+        l.link as link_a_usar,   -- <--- CORRIGIDO AQUI (Era l.url)
         v.ID_Vendedor, 
         v.NomeVendedor,
         v.SeletorPreco, 
@@ -33,7 +29,7 @@ def buscar_alvos_para_fila(conn, id_org):
         
     FROM AlvosMonitoramento a
     JOIN links_externos l ON a.id_link_externo = l.id
-    JOIN produtos p ON a.ID_Produto = p.id
+    JOIN Produtos p ON a.ID_Produto = p.ID
     JOIN Vendedores v ON l.id_vendedor = v.ID_Vendedor
     
     WHERE a.id_organizacao = %s
@@ -41,8 +37,8 @@ def buscar_alvos_para_fila(conn, id_org):
       AND (a.status_verificacao IS NULL OR a.status_verificacao != 'Erro_404')
       AND v.SeletorPreco IS NOT NULL 
       AND v.SeletorPreco != ''
-      AND l.url IS NOT NULL
-      AND l.url != ''
+      AND l.link IS NOT NULL    -- <--- CORRIGIDO AQUI
+      AND l.link != ''          -- <--- CORRIGIDO AQUI
     """
     
     try:
@@ -55,7 +51,7 @@ def buscar_alvos_para_fila(conn, id_org):
         return []
 
 def main():
-    print(f"--- [PRODUTOR] Iniciando monitoramento para Org ID {ID_ORGANIZACAO_PADRAO} ---")
+    print(f"--- [PRODUTOR SCRAPE] Iniciando monitoramento para Org ID {ID_ORGANIZACAO_PADRAO} ---")
     
     while True:
         conn = None
@@ -77,21 +73,15 @@ def main():
                 
                 enviados = 0
                 for alvo in alvos:
-                    # Garante conversão de tipos (Decimal -> Float)
                     if alvo.get('PercentualDescontoAVista'):
                         alvo['PercentualDescontoAVista'] = float(alvo['PercentualDescontoAVista'])
                     
-                    # Envia para o Celery (Worker)
-                    # O método .delay() serializa o dicionário 'alvo' como JSON automaticamente
                     tarefa_scrape.delay(alvo)
                     enviados += 1
                 
                 print(f"✅ [PRODUTOR] {enviados} tarefas enviadas com sucesso.")
 
-            # Fecha conexão para não estourar o limite do banco enquanto dorme
             conn.close()
-            
-            # Aguarda o próximo ciclo
             print(f"--- [PRODUTOR] Aguardando {INTERVALO_ENTRE_CICLOS} segundos... ---")
             time.sleep(INTERVALO_ENTRE_CICLOS)
 

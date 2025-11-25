@@ -34,11 +34,13 @@ services:
   db:
     image: mysql:8.0
     container_name: foconopreco_db
+    # COMANDO PARA GARANTIR UTF-8
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     restart: unless-stopped
     environment:
       MYSQL_DATABASE: ${DB_DATABASE}
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
-      # --- CORREÇÃO: REMOVIDO PARA EVITAR CONFLITO COM ROOT ---
+      TZ: America/Sao_Paulo
       # MYSQL_USER: ${DB_USERNAME}
       # MYSQL_PASSWORD: ${DB_PASSWORD}
     ports:
@@ -47,7 +49,7 @@ services:
       - dbdata:/var/lib/mysql
     networks:
       - foconopreco-network
-    # Monitora se o banco realmente ligou antes de liberar os robôs
+    # Monitora se o banco ligou antes de liberar os robôs
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 5s
@@ -85,7 +87,7 @@ services:
       timeout: 10s
       retries: 5
 
-  # --- 6. ROBÔS PYTHON (INTEGRADOS) ---
+  # --- 6. WORKERS CELERY (PROCESSADORES PESADOS) ---
   
   worker_scrape:
     build:
@@ -150,6 +152,9 @@ services:
     networks:
       - foconopreco-network
 
+  # --- 7. ROBÔS SCRIPTS (COLETORES E PRODUTORES) ---
+
+  # Coletor Scrape (Salva preços do Redis -> Banco)
   coletor_scrape:
     build:
       context: .
@@ -160,6 +165,7 @@ services:
       - .:/app
     env_file: .env
     environment:
+      - PYTHONPATH=/app
       - DB_HOST=db
       - REDIS_URL=redis://redis:6379
     depends_on:
@@ -171,6 +177,7 @@ services:
     networks:
       - foconopreco-network
 
+  # Coletor IA Match (Salva matches do Redis -> Banco)
   coletor_ia:
     build:
       context: .
@@ -181,6 +188,7 @@ services:
       - .:/app
     env_file: .env
     environment:
+      - PYTHONPATH=/app
       - DB_HOST=db
       - REDIS_URL=redis://redis:6379
     depends_on:
@@ -192,6 +200,7 @@ services:
     networks:
       - foconopreco-network
 
+  # Coletor Conteúdo (Salva textos gerados do Redis -> Banco)
   coletor_conteudo:
     build:
       context: .
@@ -202,6 +211,7 @@ services:
       - .:/app
     env_file: .env
     environment:
+      - PYTHONPATH=/app
       - DB_HOST=db
       - REDIS_URL=redis://redis:6379
     depends_on:
@@ -213,6 +223,7 @@ services:
     networks:
       - foconopreco-network
 
+  # Produtor Conteúdo (Lê FilaGeracaoConteudo -> Envia para Celery)
   produtor_conteudo:
     build:
       context: .
@@ -223,6 +234,7 @@ services:
       - .:/app
     env_file: .env
     environment:
+      - PYTHONPATH=/app
       - DB_HOST=db
       - REDIS_URL=redis://redis:6379
     depends_on:
@@ -234,7 +246,55 @@ services:
     networks:
       - foconopreco-network
 
-  # --- 7. ROBÔ DE BACKUP (GOOGLE DRIVE) ---
+  # --- NOVOS PRODUTORES ADICIONADOS ---
+
+  # Produtor Scrape (Lê AlvosMonitoramento -> Envia para Worker Scrape)
+  produtor_scrape:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    container_name: produtor_scrape
+    command: python3 -u python_services/scraping/produtor.py
+    volumes:
+      - .:/app
+    env_file: .env
+    environment:
+      - PYTHONPATH=/app
+      - DB_HOST=db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - foconopreco-network
+
+  # Produtor IA (Lê Produtos sem match -> Envia para Worker IA)
+  produtor_ia:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    container_name: produtor_ia
+    command: python3 -u python_services/scraping/produtor_ia.py
+    volumes:
+      - .:/app
+    env_file: .env
+    environment:
+      - PYTHONPATH=/app
+      - DB_HOST=db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - foconopreco-network
+
+  # --- 8. ROBÔ DE BACKUP ---
   worker_backup:
     build:
       context: .

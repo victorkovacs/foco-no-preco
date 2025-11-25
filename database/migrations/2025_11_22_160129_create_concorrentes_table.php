@@ -15,7 +15,7 @@ return new class extends Migration
         Schema::create('concorrentes', function (Blueprint $table) {
             // ⚠️ CORREÇÃO CRÍTICA: Remover $table->id() e definir o campo 'id'
             // sem ser Primary Key ainda, para que possamos definir a PK composta.
-            $table->bigInteger('id')->unsigned();
+            $table->bigInteger('id')->unsigned()->autoIncrement();
 
             $table->unsignedBigInteger('id_organizacao')->nullable(false);
 

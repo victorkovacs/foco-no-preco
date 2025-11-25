@@ -61,7 +61,7 @@ return [
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
                 // --- LINHA ADICIONADA PARA CORRIGIR O ERRO UTF-8 ---
-                PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES utf8mb4',
+                PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES utf8mb4; SET time_zone = "America/Sao_Paulo"',
             ]) : [],
         ],
 

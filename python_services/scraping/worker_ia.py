@@ -6,7 +6,6 @@ import datetime
 import google.generativeai as genai
 from celery.exceptions import SoftTimeLimitExceeded
 
-# --- IMPORTS PADRÃO DOCKER ---
 from python_services.scraping.celery_app import celery_app, redis_ia_results_pool
 from python_services.shared.conectar_banco import criar_conexao_db
 
@@ -21,14 +20,16 @@ def salvar_log_tokens(id_org, t_in, t_out):
         conn = criar_conexao_db()
         if conn:
             c = conn.cursor()
+            # CORREÇÃO: Tabela 'LogIaTokensSimples' e colunas 'tokens_in', 'tokens_out'
+            # Removemos 'custo_estimado_usd' pois não existe na migration
             c.execute(
-                "INSERT INTO LogIaTokens (id_organizacao, data_uso, modelo, tokens_entrada, tokens_saida, custo_estimado_usd) VALUES (%s, NOW(), %s, %s, %s, 0.0)",
+                "INSERT INTO LogIaTokensSimples (id_organizacao, modelo, tokens_in, tokens_out, data_registro) VALUES (%s, %s, %s, %s, NOW())",
                 (id_org, MODELO_GEMINI, t_in, t_out)
             )
             conn.commit()
             conn.close()
-    except:
-        pass
+    except Exception as e:
+        print(f"Erro ao salvar log tokens: {e}")
 
 @celery_app.task(name='python_services.scraping.worker_ia.tarefa_match_ia', bind=True, queue='fila_ia')
 def tarefa_match_ia(self, dados):
@@ -54,7 +55,6 @@ def tarefa_match_ia(self, dados):
         model = genai.GenerativeModel(MODELO_GEMINI)
         resp = model.generate_content(prompt)
         
-        # Tenta pegar uso de tokens (nem sempre disponível dependendo da versão da lib)
         try:
             usage = resp.usage_metadata
             salvar_log_tokens(id_org, usage.prompt_token_count, usage.candidates_token_count)
@@ -80,7 +80,7 @@ def tarefa_match_ia(self, dados):
         else:
             print("⚠️ [WORKER IA] Nenhum match.")
 
-        time.sleep(2) # Pausa leve
+        time.sleep(2)
 
     except Exception as e:
         print(f"[WORKER IA] Erro: {e}")

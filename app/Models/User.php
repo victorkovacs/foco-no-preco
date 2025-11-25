@@ -11,7 +11,7 @@ class User extends Authenticatable
     use HasFactory, Notifiable;
 
     // 1. Nome da Tabela
-    protected $table = 'usuarios';
+    protected $table = 'Usuarios';
 
     // 2. DESATIVAR TIMESTAMPS PADRÃO (A Correção do Erro)
     // Isto impede o Laravel de procurar 'created_at' e 'updated_at'

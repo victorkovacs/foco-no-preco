@@ -79,8 +79,9 @@ class ProdutoController extends Controller
         $data_inicio = $request->data_inicio;
         $data_fim = $request->data_fim;
 
+        // CORREÇÃO 1: 'vendedores' -> 'Vendedores'
         $dados = DB::table('concorrentes as c')
-            ->leftJoin('vendedores as v', 'c.ID_Vendedor', '=', 'v.ID_Vendedor')
+            ->leftJoin('Vendedores as v', 'c.ID_Vendedor', '=', 'v.ID_Vendedor')
             ->leftJoin('links_externos as l', 'c.id_link_externo', '=', 'l.id')
             ->where('c.id_organizacao', $id_organizacao)
             ->where('c.sku', $sku)
@@ -113,9 +114,10 @@ class ProdutoController extends Controller
         $id_organizacao = Auth::user()->id_organizacao;
         $produto = Produto::where('id_organizacao', $id_organizacao)->where('ID', $id)->firstOrFail();
 
-        $alvos = DB::table('alvosmonitoramento as a')
+        // CORREÇÃO 2: 'alvosmonitoramento' -> 'AlvosMonitoramento' e 'vendedores' -> 'Vendedores'
+        $alvos = DB::table('AlvosMonitoramento as a')
             ->leftJoin('links_externos as l', 'a.id_link_externo', '=', 'l.id')
-            ->leftJoin('vendedores as v', 'l.ID_Vendedor', '=', 'v.ID_Vendedor')
+            ->leftJoin('Vendedores as v', 'l.ID_Vendedor', '=', 'v.ID_Vendedor')
             ->where('a.ID_Produto', $id)
             ->select('a.id_alvo as ID_Alvo', 'v.NomeVendedor', 'l.link', 'a.id_link_externo')
             ->get();
@@ -164,7 +166,8 @@ class ProdutoController extends Controller
         $id_organizacao = Auth::user()->id_organizacao;
         $request->validate(['novo_link' => 'required|url']);
 
-        $alvo = DB::table('alvosmonitoramento')
+        // CORREÇÃO 3: 'alvosmonitoramento' -> 'AlvosMonitoramento'
+        $alvo = DB::table('AlvosMonitoramento')
             ->where('id_alvo', $idAlvo)
             ->where('id_organizacao', $id_organizacao)
             ->select('id_link_externo')

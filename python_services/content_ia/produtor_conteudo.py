@@ -1,6 +1,7 @@
 import time
 import sys
 import mysql.connector
+import json
 
 # --- IMPORTS PADRÃO DOCKER ---
 from python_services.shared.conectar_banco import criar_conexao_db
@@ -12,7 +13,7 @@ TEMPO_RESPIRO = 2
 TAMANHO_LOTE = 50
 
 def main():
-    print("--- [PRODUTOR CONTEÚDO] Iniciando... ---")
+    print("--- [PRODUTOR CONTEÚDO] Iniciando (Fila Isolada)... ---")
     
     while True:
         conn = None
@@ -24,11 +25,11 @@ def main():
                 
             cursor = conn.cursor(dictionary=True)
 
-            # 1. Busca itens 'pendente'
-            # Importante: Usa FOR UPDATE se possível ou apenas seleciona
+            # 1. Busca tarefas pendentes na Fila Isolada
+            # Agora trazemos SKU e Nome para o log ficar bonito
             query = """
-                SELECT id, palavra_chave_entrada, id_template_ia 
-                FROM produtos 
+                SELECT id, id_produto, sku, nome_produto, palavra_chave_entrada, id_template_ia 
+                FROM FilaGeracaoConteudo 
                 WHERE status = 'pendente' 
                 ORDER BY id ASC LIMIT %s
             """
@@ -41,30 +42,37 @@ def main():
                 time.sleep(TEMPO_ESPERA_VAZIO)
                 continue
 
-            print(f"--- [PRODUTOR] Processando {len(itens)} itens... ---")
+            print(f"--- [PRODUTOR] Processando {len(itens)} itens da fila... ---")
             
-            # 2. Atualiza para 'processando'
-            ids = [i['id'] for i in itens]
-            format_strings = ','.join(['%s'] * len(ids))
-            cursor.execute(f"UPDATE produtos SET status = 'processando' WHERE id IN ({format_strings})", tuple(ids))
+            # 2. Atualiza status para 'processando'
+            ids_fila = [i['id'] for i in itens]
+            format_strings = ','.join(['%s'] * len(ids_fila))
+            cursor.execute(f"UPDATE FilaGeracaoConteudo SET status = 'processando' WHERE id IN ({format_strings})", tuple(ids_fila))
             conn.commit()
             
             cursor.close()
             conn.close()
 
-            # 3. Envia para a fila
+            # 3. Envia para o Worker (Celery)
             for item in itens:
-                if not item.get('id_template_ia'):
-                    print(f"⚠️ Produto {item['id']} sem template. Pulando.")
-                    continue
+                print(f"   -> Enviando: {item['sku']} - {item['nome_produto']}")
                 
-                tarefa_gerar_conteudo.delay(item)
+                payload = {
+                    'id': item['id_produto'],       # Mantemos ID numérico para referência final
+                    'id_tarefa_fila': item['id'],   # ID da Fila (Para o Coletor dar baixa)
+                    'sku': item['sku'],             # Metadado útil
+                    'nome_produto': item['nome_produto'], # Metadado útil
+                    'palavra_chave_entrada': item['palavra_chave_entrada'], # O que a IA vai ler
+                    'id_template_ia': item['id_template_ia']
+                }
+                
+                tarefa_gerar_conteudo.delay(payload)
             
-            print(f"✅ [PRODUTOR] {len(itens)} tarefas enviadas.")
+            print(f"✅ [PRODUTOR] Lote enviado.")
             time.sleep(TEMPO_RESPIRO)
 
         except Exception as e:
-            print(f"ERRO PRODUTOR: {e}")
+            print(f"❌ ERRO PRODUTOR: {e}")
             if conn and conn.is_connected(): conn.close()
             time.sleep(10)
 

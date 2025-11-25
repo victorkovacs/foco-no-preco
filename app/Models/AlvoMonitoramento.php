@@ -9,7 +9,7 @@ class AlvoMonitoramento extends Model
 {
     use HasFactory;
 
-    protected $table = 'alvosmonitoramento'; // Nome exato da tabela
+    protected $table = 'AlvosMonitoramento'; // Nome exato da tabela
     protected $primaryKey = 'id_alvo';
     public $timestamps = false;
 
