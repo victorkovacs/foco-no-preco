@@ -3,7 +3,14 @@
 @section('title', 'Edição de Produtos')
 
 @section('content')
-<div class="w-full max-w-7xl mx-auto">
+{{-- Estilo para ocultar o resumo da paginação --}}
+<style>
+    nav div.hidden.sm\:flex-1.sm\:flex.sm\:items-center.sm\:justify-between div:first-child p {
+        display: none;
+    }
+</style>
+
+<div class="w-full max-w-7xl mx-auto font-sans antialiased">
     
     {{-- Cabeçalho da Página --}}
     <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
@@ -22,7 +29,7 @@
     </div>
 
     @if(session('success'))
-        <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded shadow-sm flex items-center">
+        <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded shadow-sm flex items-center text-sm">
             <i data-lucide="check-circle" class="w-5 h-5 mr-2"></i>
             <p>{{ session('success') }}</p>
         </div>
@@ -32,15 +39,15 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6">
         <form method="GET" action="{{ route('produtos.gerenciar') }}" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
             <div class="md:col-span-5">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Buscar</label>
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Buscar</label>
                 <div class="relative">
                     <i data-lucide="search" class="absolute left-3 top-2.5 h-4 w-4 text-gray-400"></i>
-                    <input type="text" name="search" value="{{ request('search') }}" class="pl-10 w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm" placeholder="SKU ou Nome...">
+                    <input type="text" name="search" value="{{ request('search') }}" class="pl-10 w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-gray-50" placeholder="SKU ou Nome...">
                 </div>
             </div>
             <div class="md:col-span-4">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Marca</label>
-                <select name="filter_marca" onchange="this.form.submit()" class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white">
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Marca</label>
+                <select name="filter_marca" onchange="this.form.submit()" class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-gray-50">
                     <option value="">Todas as Marcas</option>
                     @foreach($marcas as $marca)
                         <option value="{{ $marca }}" {{ request('filter_marca') == $marca ? 'selected' : '' }}>{{ $marca }}</option>
@@ -59,53 +66,82 @@
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
                 <thead>
-                    <tr class="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-semibold">
-                        <th class="p-4 w-32">SKU</th>
-                        <th class="p-4">Produto</th>
-                        <th class="p-4 hidden md:table-cell">Categoria</th>
-                        <th class="p-4 hidden md:table-cell">Marca</th>
-                        <th class="p-4 text-center">Ativo</th>
+                    <tr class="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-600 font-bold tracking-wider">
+                        <th class="p-4 w-32 group cursor-pointer hover:bg-gray-100 transition-colors">
+                            <a href="{{ route('produtos.gerenciar', array_merge(request()->query(), ['sort' => 'SKU', 'dir' => request('dir') == 'asc' ? 'desc' : 'asc'])) }}" class="flex items-center">
+                                SKU
+                                <i data-lucide="arrow-up-down" class="w-3 h-3 ml-1 text-gray-400 group-hover:text-gray-600"></i>
+                            </a>
+                        </th>
+                        <th class="p-4 group cursor-pointer hover:bg-gray-100 transition-colors">
+                            <a href="{{ route('produtos.gerenciar', array_merge(request()->query(), ['sort' => 'Nome', 'dir' => request('dir') == 'asc' ? 'desc' : 'asc'])) }}" class="flex items-center">
+                                Produto
+                                <i data-lucide="arrow-up-down" class="w-3 h-3 ml-1 text-gray-400 group-hover:text-gray-600"></i>
+                            </a>
+                        </th>
+                        <th class="p-4 hidden md:table-cell group cursor-pointer hover:bg-gray-100 transition-colors">
+                            <a href="{{ route('produtos.gerenciar', array_merge(request()->query(), ['sort' => 'Categoria', 'dir' => request('dir') == 'asc' ? 'desc' : 'asc'])) }}" class="flex items-center">
+                                Categoria
+                                <i data-lucide="arrow-up-down" class="w-3 h-3 ml-1 text-gray-400 group-hover:text-gray-600"></i>
+                            </a>
+                        </th>
+                        <th class="p-4 hidden md:table-cell group cursor-pointer hover:bg-gray-100 transition-colors">
+                            <a href="{{ route('produtos.gerenciar', array_merge(request()->query(), ['sort' => 'marca', 'dir' => request('dir') == 'asc' ? 'desc' : 'asc'])) }}" class="flex items-center">
+                                Marca
+                                <i data-lucide="arrow-up-down" class="w-3 h-3 ml-1 text-gray-400 group-hover:text-gray-600"></i>
+                            </a>
+                        </th>
+                        <th class="p-4 text-center group cursor-pointer hover:bg-gray-100 transition-colors">
+                             <a href="{{ route('produtos.gerenciar', array_merge(request()->query(), ['sort' => 'ativo', 'dir' => request('dir') == 'asc' ? 'desc' : 'asc'])) }}" class="flex items-center justify-center">
+                                Ativo
+                                <i data-lucide="arrow-up-down" class="w-3 h-3 ml-1 text-gray-400 group-hover:text-gray-600"></i>
+                            </a>
+                        </th>
                         <th class="p-4 w-24 text-center">Ações</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                     @forelse($produtos as $produto)
-                        <tr class="hover:bg-gray-50 transition-colors group">
-                            <td class="p-4 font-mono text-sm font-bold text-gray-700">{{ $produto->SKU }}</td>
+                        <tr class="hover:bg-blue-50 transition-colors group">
+                            <td class="p-4 font-mono text-sm font-semibold text-gray-700">{{ $produto->SKU }}</td>
                             <td class="p-4">
-                                <div class="font-medium text-gray-800">{{ $produto->Nome }}</div>
-                                @if($produto->LinkMeuSite)
-                                    <a href="{{ $produto->LinkMeuSite }}" target="_blank" class="text-xs text-blue-500 hover:underline flex items-center mt-1">
-                                        Link Site <i data-lucide="external-link" class="w-3 h-3 ml-1"></i>
-                                    </a>
-                                @endif
+                                <div class="flex items-center gap-3">
+                                    <span class="font-medium text-gray-800 text-sm">{{ $produto->Nome }}</span>
+                                    @if($produto->LinkMeuSite)
+                                        <a href="{{ $produto->LinkMeuSite }}" target="_blank" class="text-blue-600 hover:text-blue-800 transition-colors" title="Ver no site">
+                                            <i data-lucide="external-link" class="w-4 h-4"></i>
+                                        </a>
+                                    @endif
+                                </div>
                             </td>
                             <td class="p-4 text-sm text-gray-600 hidden md:table-cell">{{ $produto->Categoria ?: '-' }}</td>
                             <td class="p-4 text-sm text-gray-600 hidden md:table-cell">
-                                <span class="px-2 py-1 rounded bg-gray-100 text-xs border border-gray-200">{{ $produto->marca ?: 'N/D' }}</span>
+                                <span class="px-2 py-1 rounded bg-gray-100 text-xs font-medium border border-gray-200">{{ $produto->marca ?: 'N/D' }}</span>
                             </td>
                             <td class="p-4 text-center">
                                 @if($produto->ativo)
-                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 border border-green-200">Sim</span>
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">Sim</span>
                                 @else
-                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-200">Não</span>
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-200">Não</span>
                                 @endif
                             </td>
                             <td class="p-4 text-center">
                                 <div class="flex justify-center gap-2">
-                                    <button onclick="abrirModalEdicao({{ $produto->ID }})" class="p-1.5 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors" title="Editar">
+                                    <button onclick="abrirModalEdicao({{ $produto->ID }})" class="p-1.5 hover:bg-white bg-gray-50 border border-gray-200 text-blue-600 rounded-lg transition-all shadow-sm" title="Editar">
                                         <i data-lucide="edit-2" class="w-4 h-4"></i>
                                     </button>
                                 </div>
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="6" class="p-8 text-center text-gray-500">Nenhum produto encontrado.</td></tr>
+                        <tr><td colspan="6" class="p-8 text-center text-gray-500 text-sm">Nenhum produto encontrado.</td></tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
-        <div class="p-4 border-t border-gray-200">{{ $produtos->links() }}</div>
+        <div class="p-4 border-t border-gray-200 bg-gray-50 flex justify-center">
+             {{ $produtos->appends(request()->query())->links() }}
+        </div>
     </div>
 </div> 
 

@@ -9,20 +9,33 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
-<div class="w-full max-w-7xl mx-auto">
-    
-    <h1 class="text-2xl md:text-3xl font-bold text-gray-800 mb-2 flex items-center">
-        <i data-lucide="radar" class="mr-3 text-primary-dark"></i>
-        Monitoramento de SKUs
-    </h1>
-    <p class="text-gray-600 mb-8">Gerencie e acompanhe os SKUs cadastrados no sistema.</p>
+{{-- Estilo para ocultar o resumo da paginação --}}
+<style>
+    nav div.hidden.sm\:flex-1.sm\:flex.sm\:items-center.sm\:justify-between div:first-child p {
+        display: none;
+    }
+</style>
 
+<div class="w-full max-w-7xl mx-auto font-sans antialiased">
+    
+    {{-- Cabeçalho Padronizado --}}
+    <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800 flex items-center">
+                <i data-lucide="radar" class="mr-3 text-primary-dark"></i>
+                Monitoramento de SKUs
+            </h1>
+            <p class="text-gray-500 text-sm mt-1">Acompanhe os preços da concorrência.</p>
+        </div>
+    </div>
+
+    {{-- Filtros --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6">
         <form method="GET" action="{{ route('produtos.index') }}" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
             
             <div class="md:col-span-4">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Marca</label>
-                <select name="filter_marca" onchange="this.form.submit()" class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 outline-none text-sm">
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Marca</label>
+                <select name="filter_marca" onchange="this.form.submit()" class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 outline-none text-sm bg-gray-50">
                     <option value="">Todas as Marcas</option>
                     @foreach($marcas as $marca)
                         <option value="{{ $marca }}" {{ request('filter_marca') == $marca ? 'selected' : '' }}>{{ $marca }}</option>
@@ -31,55 +44,80 @@
             </div>
 
             <div class="md:col-span-5">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Buscar</label>
-                <input type="text" name="search" value="{{ request('search') }}" class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 outline-none text-sm" placeholder="SKU ou Nome...">
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Buscar</label>
+                <div class="relative">
+                    <i data-lucide="search" class="absolute left-3 top-2.5 h-4 w-4 text-gray-400"></i>
+                    <input type="text" name="search" value="{{ request('search') }}" class="pl-10 w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 outline-none text-sm bg-gray-50" placeholder="SKU ou Nome...">
+                </div>
             </div>
 
             <div class="md:col-span-3 flex gap-2">
+                <a href="{{ route('produtos.index') }}" class="px-4 py-2.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition text-sm font-medium flex-1 text-center">Limpar</a>
                 <button type="submit" class="flex-1 bg-primary-dark text-white px-4 py-2.5 rounded-lg font-medium hover:bg-opacity-90 transition text-sm">Buscar</button>
-                <a href="{{ route('produtos.index') }}" class="px-4 py-2.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition text-sm"><i data-lucide="x" class="w-5 h-5"></i></a>
             </div>
         </form>
     </div>
 
+    {{-- Tabela --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
                 <thead>
-                    <tr class="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-semibold">
-                        <th class="p-4">SKU</th>
-                        <th class="p-4">Produto</th>
-                        <th class="p-4 hidden md:table-cell">Marca</th>
+                    <tr class="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-600 font-bold tracking-wider">
+                        <th class="p-4 w-32 group cursor-pointer hover:bg-gray-100 transition-colors">
+                            <a href="{{ route('produtos.index', array_merge(request()->query(), ['sort' => 'SKU', 'dir' => request('dir') == 'asc' ? 'desc' : 'asc'])) }}" class="flex items-center">
+                                SKU
+                                <i data-lucide="arrow-up-down" class="w-3 h-3 ml-1 text-gray-400 group-hover:text-gray-600"></i>
+                            </a>
+                        </th>
+                        <th class="p-4 group cursor-pointer hover:bg-gray-100 transition-colors">
+                            <a href="{{ route('produtos.index', array_merge(request()->query(), ['sort' => 'Nome', 'dir' => request('dir') == 'asc' ? 'desc' : 'asc'])) }}" class="flex items-center">
+                                Produto
+                                <i data-lucide="arrow-up-down" class="w-3 h-3 ml-1 text-gray-400 group-hover:text-gray-600"></i>
+                            </a>
+                        </th>
+                        <th class="p-4 hidden md:table-cell group cursor-pointer hover:bg-gray-100 transition-colors">
+                            <a href="{{ route('produtos.index', array_merge(request()->query(), ['sort' => 'marca', 'dir' => request('dir') == 'asc' ? 'desc' : 'asc'])) }}" class="flex items-center">
+                                Marca
+                                <i data-lucide="arrow-up-down" class="w-3 h-3 ml-1 text-gray-400 group-hover:text-gray-600"></i>
+                            </a>
+                        </th>
                         <th class="p-4 text-center">Ações</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                     @forelse($produtos as $produto)
-                        <tr class="hover:bg-gray-50 transition-colors">
-                            <td class="p-4 font-mono text-sm font-bold text-gray-700">{{ $produto->SKU }}</td>
+                        <tr class="hover:bg-blue-50 transition-colors">
+                            <td class="p-4 font-mono text-sm font-semibold text-gray-700">{{ $produto->SKU }}</td>
                             <td class="p-4">
-                                <div class="font-medium text-gray-800">{{ $produto->Nome }}</div>
-                                @if($produto->LinkMeuSite)
-                                    <a href="{{ $produto->LinkMeuSite }}" target="_blank" class="text-xs text-blue-600 hover:underline flex items-center mt-1">
-                                        Ver Link <i data-lucide="external-link" class="w-3 h-3 ml-1"></i>
-                                    </a>
-                                @endif
+                                <div class="flex items-center gap-3">
+                                    <span class="font-medium text-gray-800 text-sm">{{ $produto->Nome }}</span>
+                                    @if($produto->LinkMeuSite)
+                                        <a href="{{ $produto->LinkMeuSite }}" target="_blank" class="text-blue-600 hover:text-blue-800 transition-colors" title="Ver no site">
+                                            <i data-lucide="external-link" class="w-4 h-4"></i>
+                                        </a>
+                                    @endif
+                                </div>
                             </td>
-                            <td class="p-4 text-sm text-gray-600 hidden md:table-cell">{{ $produto->marca }}</td>
+                            <td class="p-4 text-sm text-gray-600 hidden md:table-cell">
+                                <span class="px-2 py-1 rounded bg-gray-100 text-xs font-medium border border-gray-200">{{ $produto->marca }}</span>
+                            </td>
                             <td class="p-4 text-center">
                                 <button onclick="iniciarMonitoramento('{{ $produto->SKU }}', '{{ addslashes($produto->Nome) }}')" 
-                                        class="bg-primary-dark text-white px-3 py-1.5 rounded text-xs font-medium hover:bg-opacity-90 transition shadow-sm">
-                                    Monitorar
+                                        class="bg-white border border-blue-200 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-blue-50 transition shadow-sm flex items-center justify-center mx-auto gap-1">
+                                    <i data-lucide="activity" class="w-3 h-3"></i> Monitorar
                                 </button>
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="4" class="p-8 text-center text-gray-500">Nenhum produto encontrado.</td></tr>
+                        <tr><td colspan="4" class="p-8 text-center text-gray-500 text-sm">Nenhum produto encontrado.</td></tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
-        <div class="p-4 border-t border-gray-200">{{ $produtos->links() }}</div>
+        <div class="p-4 border-t border-gray-200 bg-gray-50 flex justify-center">
+            {{ $produtos->appends(request()->query())->links() }}
+        </div>
     </div>
 </div>
 
@@ -105,11 +143,11 @@
             <div class="flex flex-wrap gap-4 items-end mb-6 p-3 bg-gray-50 rounded-lg border border-gray-200">
                 <div class="flex-1 min-w-[150px]">
                     <label class="text-xs font-medium text-gray-600">Data Início</label>
-                    <input type="date" id="data_inicio" class="w-full p-2 border rounded-lg text-sm">
+                    <input type="date" id="data_inicio" class="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div class="flex-1 min-w-[150px]">
                     <label class="text-xs font-medium text-gray-600">Data Fim</label>
-                    <input type="date" id="data_fim" class="w-full p-2 border rounded-lg text-sm">
+                    <input type="date" id="data_fim" class="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <button onclick="aplicarFiltroData()" class="bg-primary-dark text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-opacity-90">Aplicar</button>
             </div>
@@ -139,10 +177,10 @@
         
         {{-- RODAPÉ COM BOTÃO PDF --}}
         <div class="p-4 border-t bg-gray-50 flex justify-end gap-2">
-            <button onclick="exportarPDF()" class="px-4 py-2 text-white bg-red-600 border border-red-700 rounded-lg hover:bg-red-700 font-medium flex items-center shadow-sm">
+            <button onclick="exportarPDF()" class="px-4 py-2 text-white bg-red-600 border border-red-700 rounded-lg hover:bg-red-700 font-medium flex items-center shadow-sm text-sm">
                 <i data-lucide="file-text" class="w-4 h-4 mr-2"></i> Exportar PDF
             </button>
-            <button onclick="fecharModal()" class="px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-100">Fechar</button>
+            <button onclick="fecharModal()" class="px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 text-sm">Fechar</button>
         </div>
     </div>
 </div>
@@ -342,7 +380,7 @@
         return colors[Math.floor(Math.random() * colors.length)];
     }
 
-    // --- EXPORTAR PDF (CORRIGIDO PARA NÃO QUEBRAR) ---
+    // --- EXPORTAR PDF ---
     function exportarPDF() {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
