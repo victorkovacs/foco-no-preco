@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     
+    {{-- --- NOVO: Configuração do Sentry --- --}}
+    <meta name="sentry-dsn" content="{{ env('SENTRY_LARAVEL_DSN') }}">
+
     <title>Anhanguera Ferramentas - @yield('title', 'Painel')</title>
     
     <link rel="icon" type="image/png" href="https://anhangueraferramentas.fbitsstatic.net/sf/img/favicon/apple-touch-icon.png?theme=main&v=202510311402">
@@ -124,6 +127,13 @@
                                     </div>
                                 </a>
                             </div>
+                        @endif
+                        @if($isAdmin)
+                            <a href="http://localhost:3000" target="_blank"
+                            class="flex items-center p-2 rounded text-gray-400 hover:text-white hover:bg-white/5 mb-1">
+                                <i data-lucide="activity" class="w-4 h-4 mr-3 text-green-400"></i>
+                                <span>Infraestrutura (Grafana)</span>
+                            </a>
                         @endif
                     </div>
                 </div>

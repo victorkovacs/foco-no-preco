@@ -14,7 +14,6 @@ class CuradoriaController extends Controller
     {
         $id_organizacao = Auth::user()->id_organizacao;
 
-        // Carrega lista de vendedores para o filtro (Select)
         $vendedores = Vendedor::where('id_organizacao', $id_organizacao)
             ->where('Ativo', 1)
             ->orderBy('NomeVendedor')
@@ -28,30 +27,34 @@ class CuradoriaController extends Controller
     {
         $id_organizacao = Auth::user()->id_organizacao;
 
-        // Inicia a query com os relacionamentos
-        $query = AlvoMonitoramento::with(['produto', 'vendedor'])
+        // CORREÇÃO: Carregamos o caminho completo até o vendedor
+        // 'linkExterno.globalLink.vendedor' garante que os dados estejam prontos para o Accessor
+        $query = AlvoMonitoramento::with(['produto', 'linkExterno.globalLink.vendedor'])
             ->where('id_organizacao', $id_organizacao);
 
-        // Filtro de Data (data_ultima_verificacao)
+        // Filtro de Data
         if ($request->filled('date')) {
             $query->whereDate('data_ultima_verificacao', $request->date);
         }
 
-        // Filtro de Vendedor
+        // Filtro de Vendedor (CORRIGIDO PARA NOVA ESTRUTURA)
         if ($request->filled('vendedor') && $request->vendedor !== 'todos') {
-            $query->where('id_link_externo', $request->vendedor);
+            $idVendedor = $request->vendedor;
+
+            // Navega: Alvo -> LinkExterno -> GlobalLink -> Vendedor (ID)
+            $query->whereHas('linkExterno.globalLink', function ($q) use ($idVendedor) {
+                $q->where('ID_Vendedor', $idVendedor);
+            });
         }
 
-        // Filtro de Status (OK, ERRO, etc)
+        // Filtro de Status
         if ($request->filled('status') && $request->status !== 'todos') {
             $query->where('status_verificacao', $request->status);
         }
 
-        // Paginação
         $resultados = $query->orderBy('data_ultima_verificacao', 'desc')
             ->paginate(20);
 
-        // Formata os dados para JSON
         return response()->json([
             'data' => $resultados->items(),
             'current_page' => $resultados->currentPage(),

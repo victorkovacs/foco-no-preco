@@ -79,14 +79,20 @@ class ProdutoController extends Controller
         $data_inicio = $request->data_inicio;
         $data_fim = $request->data_fim;
 
-        // CORREÇÃO 1: 'vendedores' -> 'Vendedores'
+        // CORREÇÃO PARA NOVA ESTRUTURA (GLOBAL LINKS)
         $dados = DB::table('concorrentes as c')
             ->leftJoin('Vendedores as v', 'c.ID_Vendedor', '=', 'v.ID_Vendedor')
+            // Precisamos passar pelo link_externo para chegar no global, se quisermos o link atual
+            // Nota: A tabela 'concorrentes' tem snapshot do preço, mas para exibir o link atual clicável:
             ->leftJoin('links_externos as l', 'c.id_link_externo', '=', 'l.id')
+            ->leftJoin('global_links as gl', 'l.global_link_id', '=', 'gl.id') // <-- JOIN NOVO
+
             ->where('c.id_organizacao', $id_organizacao)
             ->where('c.sku', $sku)
             ->whereBetween('c.data_extracao', [$data_inicio . ' 00:00:00', $data_fim . ' 23:59:59'])
-            ->select('v.NomeVendedor as vendedor', 'c.preco', 'c.data_extracao', 'l.link as link_concorrente')
+
+            // Agora pegamos o link da tabela GLOBAL (gl.link) e não mais de (l.link)
+            ->select('v.NomeVendedor as vendedor', 'c.preco', 'c.data_extracao', 'gl.link as link_concorrente')
             ->orderBy('c.data_extracao', 'asc')
             ->get();
 
@@ -114,12 +120,16 @@ class ProdutoController extends Controller
         $id_organizacao = Auth::user()->id_organizacao;
         $produto = Produto::where('id_organizacao', $id_organizacao)->where('ID', $id)->firstOrFail();
 
-        // CORREÇÃO 2: 'alvosmonitoramento' -> 'AlvosMonitoramento' e 'vendedores' -> 'Vendedores'
+        // CORREÇÃO PARA NOVA ESTRUTURA (GLOBAL LINKS)
         $alvos = DB::table('AlvosMonitoramento as a')
             ->leftJoin('links_externos as l', 'a.id_link_externo', '=', 'l.id')
-            ->leftJoin('Vendedores as v', 'l.ID_Vendedor', '=', 'v.ID_Vendedor')
+            // O link e o vendedor agora vivem na tabela global_links
+            ->leftJoin('global_links as gl', 'l.global_link_id', '=', 'gl.id') // <-- JOIN NOVO
+            ->leftJoin('Vendedores as v', 'gl.ID_Vendedor', '=', 'v.ID_Vendedor') // <-- Ajuste do JOIN Vendedor
+
             ->where('a.ID_Produto', $id)
-            ->select('a.id_alvo as ID_Alvo', 'v.NomeVendedor', 'l.link', 'a.id_link_externo')
+            // Pegamos 'gl.link' em vez de 'l.link'
+            ->select('a.id_alvo as ID_Alvo', 'v.NomeVendedor', 'gl.link', 'a.id_link_externo')
             ->get();
 
         if (request()->ajax() || request()->wantsJson()) {
@@ -131,7 +141,6 @@ class ProdutoController extends Controller
 
     public function update(Request $request, $id)
     {
-        // Validação com retorno JSON automático em caso de erro se AJAX
         $request->validate([
             'Nome' => 'required|string|max:255',
             'marca' => 'nullable|string|max:255',
@@ -150,7 +159,6 @@ class ProdutoController extends Controller
         $produto->ativo = (int)$request->ativo;
         $produto->save();
 
-        // CORREÇÃO: Retorna JSON se for chamado via AJAX
         if ($request->wantsJson()) {
             return response()->json([
                 'success' => true,
@@ -166,22 +174,30 @@ class ProdutoController extends Controller
         $id_organizacao = Auth::user()->id_organizacao;
         $request->validate(['novo_link' => 'required|url']);
 
-        // CORREÇÃO 3: 'alvosmonitoramento' -> 'AlvosMonitoramento'
-        $alvo = DB::table('AlvosMonitoramento')
-            ->where('id_alvo', $idAlvo)
-            ->where('id_organizacao', $id_organizacao)
-            ->select('id_link_externo')
+        // 1. Busca o link externo associado ao alvo
+        $alvo = DB::table('AlvosMonitoramento as a')
+            ->join('links_externos as l', 'a.id_link_externo', '=', 'l.id')
+            ->where('a.id_alvo', $idAlvo)
+            ->where('a.id_organizacao', $id_organizacao)
+            ->select('l.id as id_link_externo', 'l.global_link_id')
             ->first();
 
-        if (!$alvo || !$alvo->id_link_externo) {
-            return response()->json(['success' => false, 'message' => 'Alvo ou Link não encontrado.'], 404);
+        if (!$alvo) {
+            return response()->json(['success' => false, 'message' => 'Alvo não encontrado.'], 404);
         }
 
-        DB::table('links_externos')
-            ->where('id', $alvo->id_link_externo)
-            ->update(['link' => $request->novo_link, 'data_ultima_verificacao' => now()]);
+        // 2. Atualiza a tabela GLOBAL
+        // OBS: Na nova arquitetura, atualizamos o registro global.
+        // Isso corrige o link para todas as organizações que monitoram esse mesmo registro.
+        DB::table('global_links')
+            ->where('id', $alvo->global_link_id)
+            ->update([
+                'link' => $request->novo_link,
+                'data_ultima_verificacao' => null, // Força rechecagem
+                'status_link' => 'PENDENTE'
+            ]);
 
-        return response()->json(['success' => true, 'message' => 'Link do concorrente atualizado com sucesso.']);
+        return response()->json(['success' => true, 'message' => 'Link global atualizado com sucesso.']);
     }
 
     public function destroy($id)

@@ -8,7 +8,7 @@ from python_services.scraping.celery_app import redis_ia_results_pool
 from python_services.shared.conectar_banco import criar_conexao_db
 
 TAMANHO_LOTE = 100
-NOME_FILA = 'fila_ia_resultados' # Redis db=2
+NOME_FILA = 'fila_ia_resultados' 
 
 def salvar_matches(lista):
     if not lista: return
@@ -27,8 +27,9 @@ def salvar_matches(lista):
             """
             cursor.execute(sql1, (m['id_organizacao'], m['id_produto'], m['id_link_externo']))
             
-            # 2. Atualiza Link Externo
-            cursor.execute("UPDATE links_externos SET status = 'match_ia' WHERE id = %s", (m['id_link_externo'],))
+            # REMOVIDO: O update em 'links_externos' (status) foi retirado pois a coluna foi movida/removida na refatoração.
+            # Se quisermos marcar que esse link veio da IA, podemos usar o campo 'nome' ou criar um campo novo.
+            # Por enquanto, deixamos sem update para evitar erro SQL.
         
         conn.commit()
         print(f"✅ [COLETOR IA] {len(lista)} matches salvos.")

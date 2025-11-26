@@ -1,5 +1,5 @@
-@import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
 
 @theme {
     --font-sans: 'Inter', sans-serif;
@@ -7,9 +7,9 @@
     /* 1. O AZUL (Para usar nas bordas dos inputs) */
     --color-primary-dark: #002D5A;
     --color-primary-darker: #004182;
-    
+
     /* 2. O VERMELHO (Para manter o topo do formulário vermelho) */
-    --color-highlight: #D00000; 
+    --color-highlight: #D00000;
     --color-highlight-dark: #B00000;
 }
 
@@ -18,12 +18,13 @@ body {
 }
 
 @layer components {
+
     /* Estilo do Item Ativo no Menu */
     .nav-item-active {
         @apply bg-white/95 border-l-4 text-primary-dark font-semibold shadow-sm;
         border-color: var(--color-highlight);
     }
-    
+
     .nav-item-active i {
         color: var(--color-highlight);
     }
@@ -37,6 +38,7 @@ body {
     .sidebar-scrollbar::-webkit-scrollbar {
         display: none;
     }
+
     .sidebar-scrollbar {
         -ms-overflow-style: none;
         scrollbar-width: none;

@@ -1,9 +1,35 @@
 // resources/js/app.js
 
-import './bootstrap'; 
+import './bootstrap';
+import * as Sentry from "@sentry/browser";
 
-// Lógica para mostrar/esconder senha (Colocada aqui para ser carregada pelo Vite)
-window.togglePasswordVisibility = function(inputId, buttonElement) {
+// --- 1. MONITORAMENTO SENTRY (FRONTEND) ---
+// Pega a chave de segurança injetada no HTML pelo Laravel
+const sentryDsn = document.querySelector('meta[name="sentry-dsn"]')?.getAttribute('content');
+
+// Só ativa se a chave existir (Production)
+if (sentryDsn) {
+    Sentry.init({
+        dsn: sentryDsn,
+        integrations: [
+            Sentry.browserTracingIntegration(),
+            Sentry.replayIntegration(),
+        ],
+        // Monitoramento de Performance (1.0 = 100% das cargas de página)
+        tracesSampleRate: 1.0,
+        // Gravação de Sessão (Vídeo do erro - Útil para debugar)
+        replaysSessionSampleRate: 0.1, // Grava 10% das sessões normais
+        replaysOnErrorSampleRate: 1.0, // Grava 100% das sessões que derem erro
+    });
+    console.log('✅ [Sentry] Monitoramento Frontend Ativo');
+} else {
+    console.log('⚠️ [Sentry] Monitoramento Inativo (DSN não encontrado)');
+}
+
+// --- 2. FUNÇÕES DO SISTEMA ---
+
+// Lógica para mostrar/esconder senha
+window.togglePasswordVisibility = function (inputId, buttonElement) {
     const input = document.getElementById(inputId);
     const iconEye = buttonElement.querySelector('.icon-eye');
     const iconEyeOff = buttonElement.querySelector('.icon-eye-off');

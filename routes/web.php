@@ -14,6 +14,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\DetalheController;
 use App\Http\Controllers\ProdutoDashboardController;
+use App\Http\Controllers\ExportController;
 
 // Redirecionamento inicial
 Route::get('/', function () {
@@ -34,6 +35,13 @@ Route::middleware('auth')->group(function () {
         return redirect()->route('dashboard');
     })->name('index');
     Route::get('/dashboard/detalhes', [DetalheController::class, 'index'])->name('dashboard.detalhes');
+
+    // Exportação de Dados
+    Route::get('/export/concorrentes', [ExportController::class, 'exportConcorrentes'])
+        ->name('export.concorrentes');
+
+    // API de Saúde do Sistema (usada pelo Widget via AJAX)
+    Route::get('/api/health-check', [App\Http\Controllers\SystemHealthController::class, 'check'])->name('api.health_check');
 
     // Alterar Senha
     Route::get('/perfil/senha', [ProfileController::class, 'edit'])->name('profile.password.edit');

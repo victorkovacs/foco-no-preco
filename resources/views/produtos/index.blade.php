@@ -27,8 +27,15 @@
             </h1>
             <p class="text-gray-500 text-sm mt-1">Acompanhe os preços da concorrência.</p>
         </div>
-    </div>
 
+        <a href="{{ route('export.concorrentes', ['start_date' => now()->format('Y-m-d'), 'end_date' => now()->format('Y-m-d')]) }}" 
+        class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700 active:bg-green-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition ease-in-out duration-150 shadow-sm">
+            <i data-lucide="file-spreadsheet" class="w-4 h-4 mr-2"></i> 
+            Baixar Relatório ({{ now()->format('d/m') }})
+        </a>
+
+    </div>
+    
     {{-- Filtros --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6">
         <form method="GET" action="{{ route('produtos.index') }}" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
@@ -57,6 +64,7 @@
             </div>
         </form>
     </div>
+
 
     {{-- Tabela --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">

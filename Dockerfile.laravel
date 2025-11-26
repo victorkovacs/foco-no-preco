@@ -1,7 +1,6 @@
 FROM php:8.2-fpm
 
-# 1. Instala dependências do sistema
-# Unimos as suas libs (libzip-dev) com a correção (libicu-dev)
+# 1. Instala dependências do sistema (+ GNUPG para validar o Node.js)
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -12,10 +11,17 @@ RUN apt-get update && apt-get install -y \
     libzip-dev \
     zip \
     unzip \
+    gnupg \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# --- NOVO: Instala Node.js 20 (LTS) e NPM ---
+# Isso permite compilar o JS/CSS dentro do container automaticamente
+RUN mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update && apt-get install -y nodejs
+
 # 2. Instala Extensões do PHP
-# Aqui unimos o Intl (correção) com o Redis (sua necessidade) e Zip
 RUN pecl install redis \
     && docker-php-ext-enable redis \
     && docker-php-ext-configure intl \
@@ -24,16 +30,20 @@ RUN pecl install redis \
 # 3. Instala o Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# 4. Configuração de Diretório e Usuário
-# Mantemos simples (www-data) para compatibilidade Windows/Docker Desktop
+# 4. Configuração de Diretório
 WORKDIR /var/www
 
-# 5. Copia os arquivos e instala dependências
-# Isso garante que o vendor exista mesmo se o volume do Windows falhar
+# 5. Copia os arquivos do projeto
 COPY . .
+
+# 6. Instala dependências do Backend (PHP)
 RUN composer install --no-interaction --optimize-autoloader
 
-# 6. Permissões finais
+# --- NOVO: Instala dependências do Frontend e Compila (Vite) ---
+# Isso gera a pasta public/build com o JS do Sentry já configurado
+RUN npm install && npm run build
+
+# 7. Permissões finais
 RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
 
 EXPOSE 9000

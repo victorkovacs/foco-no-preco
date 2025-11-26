@@ -1,0 +1,18 @@
+global:
+  scrape_interval: 15s # Coleta dados a cada 15 segundos
+
+scrape_configs:
+  # 1. Monitora o próprio Prometheus (Saúde interna)
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # 2. Monitora o Redis (Via Redis Exporter)
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  # 3. Monitora os Containers Docker (CPU/RAM via cAdvisor)
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']

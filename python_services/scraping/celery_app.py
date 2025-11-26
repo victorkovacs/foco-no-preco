@@ -1,20 +1,41 @@
 import os
 import redis
 from celery import Celery
+from celery.schedules import crontab
 from kombu import Queue
+import sentry_sdk
+from sentry_sdk.integrations.celery import CeleryIntegration
 
-# --- CONFIGURAÇÃO OBRIGATÓRIA ---
-# No Docker, o REDIS_URL vem automático (redis://redis:6379). Localmente, usa localhost.
-REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
+# --- 1. CONFIGURAÇÃO SENTRY (Monitoramento) ---
+SENTRY_DSN = os.getenv('SENTRY_DSN')
 
-# 1. A FILA DE TAREFAS (Celery Broker - Banco 0)
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[CeleryIntegration()],
+        traces_sample_rate=1.0,
+        environment="production",
+        send_default_pii=True
+    )
+    print(f"✅ [Scraping] Sentry iniciado.")
+else:
+    print(f"⚠️ [Scraping] Sentry NÃO configurado (DSN ausente).")
+
+# --- 2. CONFIGURAÇÃO REDIS ---
+REDIS_URL = os.getenv('REDIS_URL', 'redis://redis:6379')
+
+# --- 3. DEFINIÇÃO DO APP CELERY (Nome da variável deve ser 'celery_app') ---
 celery_app = Celery(
     'tarefas_sistema',
     broker=f"{REDIS_URL}/0",
-    backend=f"{REDIS_URL}/0"
+    backend=f"{REDIS_URL}/0",
+    include=[
+        'python_services.scraping.worker',
+        'python_services.scraping.worker_ia'
+    ]
 )
 
-# 2. AS FILAS DE RESULTADOS (Redis Puros - Usados pelos Coletores)
+# --- 4. POOLS DE CONEXÃO REDIS (Necessários para o worker.py) ---
 # db=1 -> Resultados do Scrape de Preço
 redis_results_pool = redis.ConnectionPool.from_url(
     f"{REDIS_URL}/1",
@@ -27,26 +48,27 @@ redis_ia_results_pool = redis.ConnectionPool.from_url(
     decode_responses=True
 )
 
-# 3. CONFIGURAÇÕES AVANÇADAS DO CELERY
+# --- 5. CONFIGURAÇÕES AVANÇADAS ---
 celery_app.conf.update(
     task_soft_time_limit=120,
     task_time_limit=180,
     task_acks_late=True,
     worker_prefetch_multiplier=1,
-    # --- IMPORTANTE: Diz ao Celery onde estão os arquivos de tarefa ---
-    imports=[
-        'python_services.scraping.worker',
-        'python_services.scraping.worker_ia'
-    ]
+    result_expires=3600,
+    timezone='America/Sao_Paulo',
+    enable_utc=True,
+    task_serializer='json',
+    accept_content=['json'],
+    result_serializer='json',
+    broker_connection_retry_on_startup=True,
 )
 
-# 4. DEFINIÇÃO DAS FILAS
+# --- 6. FILAS E ROTAS ---
 celery_app.conf.task_queues = (
-    Queue('fila_scrape', routing_key='scrape.#'), # Fila para scraping de preços
-    Queue('fila_ia',     routing_key='ia.#'),     # Fila para matching de IA
+    Queue('fila_scrape', routing_key='scrape.#'),
+    Queue('fila_ia',     routing_key='ia.#'),
 )
 
-# 5. ROTEAMENTO DE TAREFAS (Explícito)
 celery_app.conf.task_routes = {
     'python_services.scraping.worker.tarefa_scrape': {
         'queue': 'fila_scrape',
@@ -58,4 +80,13 @@ celery_app.conf.task_routes = {
     },
 }
 
-print("Configuração do Celery (Scrape & IA) carregada com sucesso.")
+# --- 7. AGENDAMENTO (BEAT) ---
+celery_app.conf.beat_schedule = {
+    'verificar-fila-dlq-cada-10-min': {
+        'task': 'python_services.scraping.worker.verificar_dlq_task',
+        'schedule': crontab(minute='*/10'),
+    },
+}
+
+if __name__ == '__main__':
+    celery_app.start()

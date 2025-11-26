@@ -4,28 +4,50 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Pagination\LengthAwarePaginator;
+use App\Services\SentryService;
 
 class DlqController extends Controller
 {
     /**
-     * Exibe a lista de erros da DLQ.
+     * Exibe o Painel Unificado de Monitoramento (Sentry + DLQ).
      */
-    public function index()
+    public function index(Request $request, SentryService $sentryService)
     {
-        // Lê todos os itens da lista 'fila_dlq_erros' (do índice 0 ao -1)
-        // Nota: O Redis retorna strings JSON, precisamos decodificar.
-        $rawErrors = Redis::lrange('fila_dlq_erros', 0, -1);
+        // 1. Busca Erros da Aplicação (Sentry Cloud)
+        $sentryIssues = $sentryService->getLatestIssues(6);
 
-        $errors = collect($rawErrors)->map(function ($item) {
+        // 2. Busca Erros de Processamento (Redis DLQ)
+        $perPage = 15;
+        $page = $request->input('page', 1);
+        $safetyLimit = 1000;
+        $key = 'fila_dlq_erros';
+
+        $totalRedis = Redis::llen($key);
+        $rawErrors = Redis::lrange($key, 0, $safetyLimit);
+
+        $collection = collect($rawErrors)->map(function ($item) {
             return json_decode($item, true);
         });
 
-        return view('admin.dlq.index', ['errors' => $errors]);
+        $itemsAtual = $collection->slice(($page - 1) * $perPage, $perPage)->values();
+
+        $errors = new LengthAwarePaginator(
+            $itemsAtual,
+            $collection->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+
+        return view('admin.dlq.index', [
+            'errors' => $errors,
+            'totalRedis' => $totalRedis,
+            'safetyLimit' => $safetyLimit,
+            'sentryIssues' => $sentryIssues // <--- Dados novos
+        ]);
     }
 
-    /**
-     * Limpa toda a lista DLQ.
-     */
     public function clear()
     {
         Redis::del('fila_dlq_erros');

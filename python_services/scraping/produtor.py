@@ -10,19 +10,21 @@ from python_services.shared.conectar_banco import criar_conexao_db
 
 # Configuração
 ID_ORGANIZACAO_PADRAO = 1
-HORARIO_EXECUCAO = "21:53"  # Horário que ele vai rodar todo dia (HH:MM)
+HORARIO_EXECUCAO = "01:00"
 
 def buscar_alvos_para_fila(conn, id_org):
     cursor = conn.cursor(dictionary=True)
     
-    # Busca produtos ativos, com link preenchido e seletor configurado
+    # --- QUERY ATUALIZADA PARA NOVA ESTRUTURA (GLOBAL LINKS) ---
     query = """
     SELECT 
         a.id_alvo, 
         a.id_organizacao,
         p.SKU as sku,
         l.id as id_link_externo,
-        l.link as link_a_usar,
+        
+        -- Agora pegamos o link e o vendedor da tabela GLOBAL
+        gl.link as link_a_usar,
         v.ID_Vendedor, 
         v.NomeVendedor,
         v.SeletorPreco, 
@@ -30,16 +32,20 @@ def buscar_alvos_para_fila(conn, id_org):
         
     FROM AlvosMonitoramento a
     JOIN links_externos l ON a.id_link_externo = l.id
+    -- JOIN com a tabela Mestre de Links
+    JOIN global_links gl ON l.global_link_id = gl.id
     JOIN Produtos p ON a.ID_Produto = p.ID
-    JOIN Vendedores v ON l.id_vendedor = v.ID_Vendedor
+    -- O Vendedor agora está ligado ao Global Link, não ao link externo local
+    JOIN Vendedores v ON gl.ID_Vendedor = v.ID_Vendedor
     
     WHERE a.id_organizacao = %s
       AND a.ativo = 1
       AND (a.status_verificacao IS NULL OR a.status_verificacao != 'Erro_404')
       AND v.SeletorPreco IS NOT NULL 
       AND v.SeletorPreco != ''
-      AND l.link IS NOT NULL
-      AND l.link != ''
+      -- Validação agora é no link global
+      AND gl.link IS NOT NULL
+      AND gl.link != ''
     """
     
     try:
@@ -60,10 +66,8 @@ def aguardar_ate_horario(horario_alvo_str):
         print(f"ERRO: Formato de hora inválido ({horario_alvo_str}). Usando 05:00 padrão.")
         hora, minuto = 5, 0
     
-    # Cria objeto data para o horário alvo de hoje
     proxima_execucao = agora.replace(hour=hora, minute=minuto, second=0, microsecond=0)
     
-    # Se já passou do horário hoje, agenda para amanhã
     if agora >= proxima_execucao:
         proxima_execucao += timedelta(days=1)
     
@@ -79,10 +83,8 @@ def main():
     print(f"--- [PRODUTOR SCRAPE] Iniciando monitoramento diário (Alvo: {HORARIO_EXECUCAO}) ---")
     
     while True:
-        # 1. Agendamento Inteligente: O robô dorme aqui até dar a hora certa
         aguardar_ate_horario(HORARIO_EXECUCAO)
 
-        # 2. Hora de trabalhar!
         conn = None
         try:
             print(f"--- [PRODUTOR] Acordando! Iniciando ciclo de execução às {datetime.now().strftime('%H:%M:%S')} ---")
@@ -92,7 +94,6 @@ def main():
                 time.sleep(60)
                 continue
 
-            # 3. Busca Alvos
             print("--- [PRODUTOR] Buscando alvos no banco... ---")
             alvos = buscar_alvos_para_fila(conn, ID_ORGANIZACAO_PADRAO)
             
@@ -103,11 +104,9 @@ def main():
                 
                 enviados = 0
                 for alvo in alvos:
-                    # Converte decimal para float para evitar erro de serialização JSON
                     if alvo.get('PercentualDescontoAVista'):
                         alvo['PercentualDescontoAVista'] = float(alvo['PercentualDescontoAVista'])
                     
-                    # Envia para o Worker Scrape via Celery
                     tarefa_scrape.delay(alvo)
                     enviados += 1
                 
@@ -118,7 +117,6 @@ def main():
 
         except Exception as e:
             print(f"ERRO FATAL [PRODUTOR]: {e}")
-            # Em caso de erro fatal, espera 1 minuto antes de tentar recalcular o agendamento
             time.sleep(60)
             if conn and conn.is_connected():
                 conn.close()

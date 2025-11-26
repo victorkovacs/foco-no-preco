@@ -9,3 +9,4 @@ lxml>=4.9.0
 eventlet>=0.33.0
 google-api-python-client
 google-auth
+sentry-sdk[celery]
