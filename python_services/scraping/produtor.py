@@ -10,7 +10,7 @@ from python_services.shared.conectar_banco import criar_conexao_db
 
 # Configuração
 ID_ORGANIZACAO_PADRAO = 1
-HORARIO_EXECUCAO = "01:00"  # Horário que ele vai rodar todo dia (HH:MM)
+HORARIO_EXECUCAO = "21:53"  # Horário que ele vai rodar todo dia (HH:MM)
 
 def buscar_alvos_para_fila(conn, id_org):
     cursor = conn.cursor(dictionary=True)

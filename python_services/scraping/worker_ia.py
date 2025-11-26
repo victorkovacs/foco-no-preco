@@ -5,11 +5,15 @@ import time
 import datetime
 import google.generativeai as genai
 from celery.exceptions import SoftTimeLimitExceeded
+from python_services.shared.celery_task_dlq import CeleryDLQTask
 
 from python_services.scraping.celery_app import celery_app, redis_ia_results_pool
-from python_services.shared.conectar_banco import criar_conexao_db
+# ADICIONADO: Import do get_docker_secret
+from python_services.shared.conectar_banco import criar_conexao_db, get_docker_secret
 
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+# ALTERADO: Leitura segura da chave
+GEMINI_API_KEY = get_docker_secret('gemini_api_key', os.environ.get('GEMINI_API_KEY'))
+
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
 
@@ -31,7 +35,7 @@ def salvar_log_tokens(id_org, t_in, t_out):
     except Exception as e:
         print(f"Erro ao salvar log tokens: {e}")
 
-@celery_app.task(name='python_services.scraping.worker_ia.tarefa_match_ia', bind=True, queue='fila_ia')
+@celery_app.task(name='python_services.scraping.worker_ia.tarefa_match_ia', bind=True, queue='fila_ia', base=CeleryDLQTask)
 def tarefa_match_ia(self, dados):
     sku = dados.get('produto_sku')
     nome = dados.get('nome_produto')

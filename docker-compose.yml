@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # --- 1. O SITE (LARAVEL + PHP) ---
   app:
@@ -14,6 +12,8 @@ services:
       - .:/var/www
     networks:
       - foconopreco-network
+    secrets:
+      - db_password
 
   # --- 2. O SERVIDOR WEB (NGINX) ---
   webserver:
@@ -39,17 +39,20 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_DATABASE: ${DB_DATABASE}
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      # Usa _FILE para ler do secret montado
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
+      MYSQL_PASSWORD_FILE: /run/secrets/db_password
+      MYSQL_USER: ${DB_USERNAME}
       TZ: America/Sao_Paulo
-      # MYSQL_USER: ${DB_USERNAME}
-      # MYSQL_PASSWORD: ${DB_PASSWORD}
     ports:
       - "3306:3306"
     volumes:
       - dbdata:/var/lib/mysql
     networks:
       - foconopreco-network
-    # Monitora se o banco ligou antes de liberar os robôs
+    secrets:
+      - db_root_password
+      - db_password
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 5s
@@ -63,7 +66,8 @@ services:
     environment:
       PMA_HOST: db
       PMA_USER: root
-      PMA_PASSWORD: ${DB_PASSWORD}
+      # Usa _FILE para ler a senha do root automaticamente
+      PMA_PASSWORD_FILE: /run/secrets/db_root_password
       UPLOAD_LIMIT: 64M
     ports:
       - "8080:80"
@@ -71,6 +75,8 @@ services:
       - db
     networks:
       - foconopreco-network
+    secrets:
+      - db_root_password
 
   # --- 5. REDIS (FILAS) ---
   redis:
@@ -109,6 +115,8 @@ services:
     restart: unless-stopped
     networks:
       - foconopreco-network
+    secrets:
+      - db_password
 
   worker_ia:
     build:
@@ -130,6 +138,9 @@ services:
     restart: unless-stopped
     networks:
       - foconopreco-network
+    secrets:
+      - db_password
+      - gemini_api_key
 
   worker_conteudo:
     build:
@@ -151,10 +162,12 @@ services:
     restart: unless-stopped
     networks:
       - foconopreco-network
+    secrets:
+      - db_password
+      - gemini_api_key
 
   # --- 7. ROBÔS SCRIPTS (COLETORES E PRODUTORES) ---
 
-  # Coletor Scrape (Salva preços do Redis -> Banco)
   coletor_scrape:
     build:
       context: .
@@ -176,8 +189,9 @@ services:
     restart: unless-stopped
     networks:
       - foconopreco-network
+    secrets:
+      - db_password
 
-  # Coletor IA Match (Salva matches do Redis -> Banco)
   coletor_ia:
     build:
       context: .
@@ -199,8 +213,9 @@ services:
     restart: unless-stopped
     networks:
       - foconopreco-network
+    secrets:
+      - db_password
 
-  # Coletor Conteúdo (Salva textos gerados do Redis -> Banco)
   coletor_conteudo:
     build:
       context: .
@@ -222,8 +237,9 @@ services:
     restart: unless-stopped
     networks:
       - foconopreco-network
+    secrets:
+      - db_password
 
-  # Produtor Conteúdo (Lê FilaGeracaoConteudo -> Envia para Celery)
   produtor_conteudo:
     build:
       context: .
@@ -245,10 +261,9 @@ services:
     restart: unless-stopped
     networks:
       - foconopreco-network
+    secrets:
+      - db_password
 
-  # --- NOVOS PRODUTORES ADICIONADOS ---
-
-  # Produtor Scrape (Lê AlvosMonitoramento -> Envia para Worker Scrape)
   produtor_scrape:
     build:
       context: .
@@ -270,8 +285,9 @@ services:
     restart: unless-stopped
     networks:
       - foconopreco-network
+    secrets:
+      - db_password
 
-  # Produtor IA (Lê Produtos sem match -> Envia para Worker IA)
   produtor_ia:
     build:
       context: .
@@ -293,8 +309,9 @@ services:
     restart: unless-stopped
     networks:
       - foconopreco-network
+    secrets:
+      - db_password
 
-  # --- 8. ROBÔ DE BACKUP ---
   worker_backup:
     build:
       context: .
@@ -313,8 +330,10 @@ services:
     restart: unless-stopped
     networks:
       - foconopreco-network
+    secrets:
+      - db_password
 
-# --- REDES E VOLUMES ---
+# --- DECLARAÇÃO GLOBAL DOS SECRETS ---
 networks:
   foconopreco-network:
     driver: bridge
@@ -322,3 +341,11 @@ networks:
 volumes:
   dbdata:
     driver: local
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
+  db_root_password:
+    file: ./secrets/db_root_password.txt
+  gemini_api_key:      
+    file: ./secrets/gemini_api_key.txt

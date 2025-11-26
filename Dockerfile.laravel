@@ -1,38 +1,40 @@
 FROM php:8.2-fpm
 
-# Argumentos definidos no docker-compose.yml
-ARG user=foconopreco
-ARG uid=1000
-
-# Instala dependências do sistema
+# 1. Instala dependências do sistema
+# Unimos as suas libs (libzip-dev) com a correção (libicu-dev)
 RUN apt-get update && apt-get install -y \
     git \
     curl \
     libpng-dev \
     libonig-dev \
     libxml2-dev \
+    libicu-dev \
+    libzip-dev \
     zip \
     unzip \
-    libzip-dev \
-    # Limpeza para reduzir tamanho da imagem
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# --- CORREÇÃO: Instala a extensão do Redis via PECL ---
+# 2. Instala Extensões do PHP
+# Aqui unimos o Intl (correção) com o Redis (sua necessidade) e Zip
 RUN pecl install redis \
-    && docker-php-ext-enable redis
+    && docker-php-ext-enable redis \
+    && docker-php-ext-configure intl \
+    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd intl zip
 
-# Instala extensões nativas do PHP
-RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
-
-# Instala o Composer
+# 3. Instala o Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Cria usuário do sistema para rodar comandos Composer e Artisan
-RUN useradd -G www-data,root -u $uid -d /home/$user $user
-RUN mkdir -p /home/$user/.composer && \
-    chown -R $user:$user /home/$user
-
-# Define diretório de trabalho
+# 4. Configuração de Diretório e Usuário
+# Mantemos simples (www-data) para compatibilidade Windows/Docker Desktop
 WORKDIR /var/www
 
-USER $user
+# 5. Copia os arquivos e instala dependências
+# Isso garante que o vendor exista mesmo se o volume do Windows falhar
+COPY . .
+RUN composer install --no-interaction --optimize-autoloader
+
+# 6. Permissões finais
+RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
+
+EXPOSE 9000
+CMD ["php-fpm"]

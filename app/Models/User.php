@@ -10,14 +10,13 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
-    // 1. Nome da Tabela
-    protected $table = 'Usuarios';
+    // --- CONSTANTES DE NÍVEL DE ACESSO ---
+    const NIVEL_COLABORADOR = 2;
+    const NIVEL_ADMIN = 1;
 
-    // 2. DESATIVAR TIMESTAMPS PADRÃO (A Correção do Erro)
-    // Isto impede o Laravel de procurar 'created_at' e 'updated_at'
+    protected $table = 'Usuarios';
     public $timestamps = false;
 
-    // 3. Campos que podem ser preenchidos
     protected $fillable = [
         'email',
         'senha_hash',
@@ -25,7 +24,6 @@ class User extends Authenticatable
         'ativo',
         'id_organizacao',
         'api_key',
-        // Removi 'data_criacao' daqui porque o MySQL preenche sozinho (DEFAULT CURRENT_TIMESTAMP)
     ];
 
     protected $hidden = [
@@ -33,9 +31,21 @@ class User extends Authenticatable
         'remember_token',
     ];
 
-    // 4. Dizer ao Laravel que a senha está na coluna 'senha_hash'
     public function getAuthPassword()
     {
         return $this->senha_hash;
+    }
+
+    // --- AQUI ESTÃO AS FUNÇÕES QUE FALTAVAM ---
+
+    public function isAdmin(): bool
+    {
+        // Verifica se a coluna 'nivel_acesso' é igual a 1
+        return $this->nivel_acesso === self::NIVEL_ADMIN;
+    }
+
+    public function isColaborador(): bool
+    {
+        return $this->nivel_acesso === self::NIVEL_COLABORADOR;
     }
 }

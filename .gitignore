@@ -23,3 +23,4 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 service_account.json
+secrets/
