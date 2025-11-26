@@ -97,6 +97,9 @@ Route::middleware('auth')->group(function () {
         // Configurações de Sistema e Financeiro
         Route::get('/custos-ia', [CustosIaController::class, 'index'])->name('custos_ia.index');
 
+        // Monitoramento de Infraestrutura (Grafana)
+        Route::get('/admin/infra', [App\Http\Controllers\SystemHealthController::class, 'index'])->name('infra.index');
+
         // Gestão de Templates de IA
         Route::get('/templates-ia', [TemplateIaController::class, 'index'])->name('templates_ia.index');
         Route::get('/templates-ia/list', [TemplateIaController::class, 'list'])->name('templates_ia.list');

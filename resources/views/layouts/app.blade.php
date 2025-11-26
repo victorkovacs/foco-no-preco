@@ -129,10 +129,10 @@
                             </div>
                         @endif
                         @if($isAdmin)
-                            <a href="http://localhost:3000" target="_blank"
-                            class="flex items-center p-2 rounded text-gray-400 hover:text-white hover:bg-white/5 mb-1">
-                                <i data-lucide="activity" class="w-4 h-4 mr-3 text-green-400"></i>
-                                <span>Infraestrutura (Grafana)</span>
+                            <a href="{{ route('infra.index') }}"
+                                class="flex items-center p-2 rounded text-gray-400 hover:text-white hover:bg-white/5 mb-1 {{ request()->routeIs('infra.index') ? 'text-green-400 font-semibold bg-white/5' : '' }}">
+                                <i data-lucide="activity" class="w-4 h-4 mr-3 {{ request()->routeIs('infra.index') ? 'text-green-400' : 'text-green-600' }}"></i>
+                                <span>Infraestrutura</span>
                             </a>
                         @endif
                     </div>

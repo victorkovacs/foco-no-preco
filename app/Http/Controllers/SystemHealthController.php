@@ -107,4 +107,14 @@ class SystemHealthController extends Controller
         $bytes /= pow(1024, $pow);
         return round($bytes, $precision) . ' ' . $units[$pow];
     }
+
+    public function index()
+    {
+        // Verifica se é admin por segurança extra
+        if (!Auth::user()->isAdmin()) {
+            abort(403);
+        }
+
+        return view('admin.infra.index');
+    }
 }

@@ -389,6 +389,9 @@ services:
       # Senha inicial (troque no primeiro login ou use Secrets para produção real)
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ALLOW_EMBEDDING=true          # Permite Iframe
+      - GF_AUTH_ANONYMOUS_ENABLED=true            # Permite ver sem logar (Opcional)
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer         # Acesso apenas de leitura
     ports:
       - "3000:3000"
     depends_on:
@@ -410,7 +413,7 @@ services:
 
   # 4. cADVISOR (Monitor de Hardware/Containers)
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    image: gcr.io/cadvisor/cadvisor:v0.47.0
     container_name: foconopreco_cadvisor
     restart: unless-stopped
     privileged: true
