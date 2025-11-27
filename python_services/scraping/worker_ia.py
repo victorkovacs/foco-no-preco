@@ -7,11 +7,12 @@ import google.generativeai as genai
 from celery.exceptions import SoftTimeLimitExceeded
 from python_services.shared.celery_task_dlq import CeleryDLQTask
 
-from python_services.scraping.celery_app import celery_app, redis_ia_results_pool
-# ADICIONADO: Import do get_docker_secret
-from python_services.shared.conectar_banco import criar_conexao_db, get_docker_secret
+# --- IMPORTS CORRIGIDOS ---
+from python_services.scraping.celery_app import celery_app
+# Usa o pool correto do arquivo shared
+from python_services.shared.conectar_banco import criar_conexao_db, get_docker_secret, redis_ia_results_pool
 
-# ALTERADO: Leitura segura da chave
+# Leitura Segura da Chave
 GEMINI_API_KEY = get_docker_secret('gemini_api_key', os.environ.get('GEMINI_API_KEY'))
 
 if GEMINI_API_KEY:
@@ -24,8 +25,6 @@ def salvar_log_tokens(id_org, t_in, t_out):
         conn = criar_conexao_db()
         if conn:
             c = conn.cursor()
-            # CORREÇÃO: Tabela 'LogIaTokensSimples' e colunas 'tokens_in', 'tokens_out'
-            # Removemos 'custo_estimado_usd' pois não existe na migration
             c.execute(
                 "INSERT INTO LogIaTokensSimples (id_organizacao, modelo, tokens_in, tokens_out, data_registro) VALUES (%s, %s, %s, %s, NOW())",
                 (id_org, MODELO_GEMINI, t_in, t_out)
@@ -77,7 +76,7 @@ def tarefa_match_ia(self, dados):
                 "id_organizacao": id_org,
                 "match_data": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             }
-            # Envia para Redis (db=2)
+            # Envia para Redis (db=2) usando o pool compartilhado
             r = redis.Redis(connection_pool=redis_ia_results_pool)
             r.lpush('fila_ia_resultados', json.dumps(final))
             r.close()

@@ -6,7 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     
     {{-- --- NOVO: Configuração do Sentry --- --}}
-    <meta name="sentry-dsn" content="{{ env('SENTRY_LARAVEL_DSN') }}">
+    <meta name="sentry-dsn" content="{{ config('sentry.dsn') }}">
 
     <title>Anhanguera Ferramentas - @yield('title', 'Painel')</title>
     

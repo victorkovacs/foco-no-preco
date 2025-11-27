@@ -16,5 +16,6 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Integração Sentry para reporte de erros
+        \Sentry\Laravel\Integration::handles($exceptions);
     })->create();

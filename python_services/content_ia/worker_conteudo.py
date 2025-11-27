@@ -5,20 +5,17 @@ import requests
 import redis
 import time
 
-# --- IMPORTS PADRÃO DOCKER ---
-# ADICIONADO: Importamos a função get_docker_secret daqui
-from python_services.shared.conectar_banco import criar_conexao_db, get_docker_secret
-from python_services.content_ia.celery_app_conteudo import celery_app_conteudo, redis_conteudo_results_pool
+# --- IMPORTS CORRIGIDOS ---
+from python_services.shared.conectar_banco import criar_conexao_db, get_docker_secret, redis_conteudo_results_pool
+from python_services.content_ia.celery_app_conteudo import celery_app_conteudo
 
 # Nome da fila de resultados
 NOME_FILA_RESULTADOS_CONTEUDO = "fila_resultados_conteudo_ia"
 
 # --- CHAVES DE API ---
-# ALTERADO: Agora lê do Secret, com fallback para o ENV (caso rode local sem docker)
-API_KEY_GOOGLE = os.getenv('API_KEY_GOOGLE') # Se quiser proteger essa também, repita o processo
+# Lê do Secret com fallback
+API_KEY_GOOGLE = os.getenv('API_KEY_GOOGLE')
 CX_ID_GOOGLE = os.getenv('CX_ID_GOOGLE')
-
-# AQUI ESTÁ A MUDANÇA DA CHAVE GEMINI:
 GEMINI_API_KEY = get_docker_secret('gemini_api_key', os.getenv('GEMINI_API_KEY'))
 
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"

@@ -24,31 +24,15 @@ else:
 # --- 2. CONFIGURAÇÃO REDIS ---
 REDIS_URL = os.getenv('REDIS_URL', 'redis://redis:6379')
 
-# --- 3. DEFINIÇÃO DO APP CELERY (Nome da variável deve ser 'celery_app') ---
+# --- 3. DEFINIÇÃO DO APP CELERY ---
+# Importante: Removemos 'include' daqui para evitar o Ciclo de Importação.
 celery_app = Celery(
     'tarefas_sistema',
     broker=f"{REDIS_URL}/0",
-    backend=f"{REDIS_URL}/0",
-    include=[
-        'python_services.scraping.worker',
-        'python_services.scraping.worker_ia'
-    ]
+    backend=f"{REDIS_URL}/0"
 )
 
-# --- 4. POOLS DE CONEXÃO REDIS (Necessários para o worker.py) ---
-# db=1 -> Resultados do Scrape de Preço
-redis_results_pool = redis.ConnectionPool.from_url(
-    f"{REDIS_URL}/1",
-    decode_responses=True
-)
-
-# db=2 -> Resultados da IA (Match)
-redis_ia_results_pool = redis.ConnectionPool.from_url(
-    f"{REDIS_URL}/2",
-    decode_responses=True
-)
-
-# --- 5. CONFIGURAÇÕES AVANÇADAS ---
+# --- 4. CONFIGURAÇÕES AVANÇADAS ---
 celery_app.conf.update(
     task_soft_time_limit=120,
     task_time_limit=180,
@@ -63,7 +47,7 @@ celery_app.conf.update(
     broker_connection_retry_on_startup=True,
 )
 
-# --- 6. FILAS E ROTAS ---
+# --- 5. FILAS E ROTAS ---
 celery_app.conf.task_queues = (
     Queue('fila_scrape', routing_key='scrape.#'),
     Queue('fila_ia',     routing_key='ia.#'),
@@ -80,13 +64,23 @@ celery_app.conf.task_routes = {
     },
 }
 
-# --- 7. AGENDAMENTO (BEAT) ---
+# --- 6. AGENDAMENTO (BEAT) ---
 celery_app.conf.beat_schedule = {
     'verificar-fila-dlq-cada-10-min': {
         'task': 'python_services.scraping.worker.verificar_dlq_task',
         'schedule': crontab(minute='*/10'),
     },
 }
+
+# --- 7. CARREGAMENTO DOS WORKERS (TARDIO) ---
+# Definimos o include aqui no final para garantir que 'celery_app' já existe
+# antes dos workers tentarem importá-lo.
+celery_app.conf.update(
+    include=[
+        'python_services.scraping.worker',
+        'python_services.scraping.worker_ia'
+    ]
+)
 
 if __name__ == '__main__':
     celery_app.start()

@@ -4,9 +4,8 @@ import time
 import sys
 import mysql.connector
 
-# --- IMPORTS PADRÃO DOCKER ---
-from python_services.shared.conectar_banco import criar_conexao_db
-from python_services.content_ia.celery_app_conteudo import redis_conteudo_results_pool
+# --- IMPORTS CORRIGIDOS ---
+from python_services.shared.conectar_banco import criar_conexao_db, redis_conteudo_results_pool
 from python_services.content_ia.worker_conteudo import NOME_FILA_RESULTADOS_CONTEUDO
 
 TAMANHO_LOTE = 100
@@ -35,7 +34,6 @@ def salvar_lote(lote_resultados):
                 
                 if d.get('status') == 'sucesso':
                     # 1. Prepara insert na tabela de RESULTADO FINAL (conteudo_gerado_ia)
-                    # Note que salvamos vinculado ao ID do produto, pois o conteúdo pertence ao produto.
                     sucessos_conteudo.append((
                         pid, 
                         d.get('modelo_usado'), 
@@ -66,9 +64,8 @@ def salvar_lote(lote_resultados):
             """
             cursor.executemany(sql_ia, sucessos_conteudo)
 
-        # --- B. Atualiza a FILA (Status) - ISOLADO DE PRODUTOS ---
+        # --- B. Atualiza a FILA (Status) ---
         if updates_fila_ok:
-            # Atualiza apenas a FilaGeracaoConteudo
             format_strings = ','.join(['%s'] * len(updates_fila_ok))
             sql_ok = f"UPDATE FilaGeracaoConteudo SET status = 'concluido', updated_at = NOW() WHERE id IN ({format_strings})"
             cursor.execute(sql_ok, tuple(updates_fila_ok))
@@ -87,7 +84,7 @@ def salvar_lote(lote_resultados):
         if conn: conn.close()
 
 def main():
-    print("[COLETOR CONTEÚDO] Iniciando (Modo Isolado)...")
+    print("[COLETOR CONTEÚDO] Iniciando...")
     try:
         r = redis.Redis(connection_pool=redis_conteudo_results_pool)
     except Exception as e:

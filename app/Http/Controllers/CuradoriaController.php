@@ -2,64 +2,127 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AlvoMonitoramento;
-use App\Models\Vendedor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use App\Models\Vendedor;
+use App\Models\Produto;
 
 class CuradoriaController extends Controller
 {
-    // 1. Carregar a Página HTML
     public function index()
     {
-        $id_organizacao = Auth::user()->id_organizacao;
-
-        $vendedores = Vendedor::where('id_organizacao', $id_organizacao)
-            ->where('Ativo', 1)
-            ->orderBy('NomeVendedor')
-            ->get();
-
-        return view('curadoria.index', compact('vendedores'));
+        return view('curadoria.index');
     }
 
-    // 2. API para buscar dados via AJAX (Fetch)
     public function search(Request $request)
     {
         $id_organizacao = Auth::user()->id_organizacao;
+        $data_pesquisa = $request->input('data_pesquisa', date('Y-m-d'));
+        $page = $request->input('p', 1);
 
-        // CORREÇÃO: Carregamos o caminho completo até o vendedor
-        // 'linkExterno.globalLink.vendedor' garante que os dados estejam prontos para o Accessor
-        $query = AlvoMonitoramento::with(['produto', 'linkExterno.globalLink.vendedor'])
-            ->where('id_organizacao', $id_organizacao);
+        // --- ALTERAÇÃO SOLICITADA: 15 ITENS POR PÁGINA ---
+        $limit = 15;
 
-        // Filtro de Data
-        if ($request->filled('date')) {
-            $query->whereDate('data_ultima_verificacao', $request->date);
+        $filtro_vendedor = $request->input('filtro_vendedor_id', 'todos');
+        $filtro_status = $request->input('filtro_status', 'todos');
+
+        // 1. Vendedores (Colunas)
+        $queryVendedores = Vendedor::where('id_organizacao', $id_organizacao)->where('Ativo', 1);
+        if ($filtro_vendedor !== 'todos') {
+            $queryVendedores->where('ID_Vendedor', $filtro_vendedor);
         }
+        $vendedores = $queryVendedores->orderBy('NomeVendedor')->get(['ID_Vendedor', 'NomeVendedor']);
 
-        // Filtro de Vendedor (CORRIGIDO PARA NOVA ESTRUTURA)
-        if ($request->filled('vendedor') && $request->vendedor !== 'todos') {
-            $idVendedor = $request->vendedor;
+        // 2. Produtos (Linhas)
+        $queryProdutos = Produto::where('id_organizacao', $id_organizacao)->where('ativo', 1);
 
-            // Navega: Alvo -> LinkExterno -> GlobalLink -> Vendedor (ID)
-            $query->whereHas('linkExterno.globalLink', function ($q) use ($idVendedor) {
-                $q->where('ID_Vendedor', $idVendedor);
+        if ($request->filled('search')) {
+            $term = $request->search;
+            $queryProdutos->where(function ($q) use ($term) {
+                $q->where('SKU', 'like', "%$term%")
+                    ->orWhere('Nome', 'like', "%$term%");
             });
         }
 
-        // Filtro de Status
-        if ($request->filled('status') && $request->status !== 'todos') {
-            $query->where('status_verificacao', $request->status);
+        // 3. Filtros de Status
+        if ($filtro_vendedor !== 'todos' && $filtro_status !== 'todos') {
+            if ($filtro_status === 'pesquisado') {
+                $queryProdutos->whereHas('alvos', function ($q) use ($filtro_vendedor, $data_pesquisa) {
+                    $q->whereHas('linkExterno.globalLink', function ($gl) use ($filtro_vendedor) {
+                        $gl->where('ID_Vendedor', $filtro_vendedor);
+                    })->whereDate('data_ultima_verificacao', $data_pesquisa);
+                });
+            } elseif ($filtro_status === 'nao_pesquisado') {
+                $queryProdutos->whereHas('alvos', function ($q) use ($filtro_vendedor, $data_pesquisa) {
+                    $q->whereHas('linkExterno.globalLink', function ($gl) use ($filtro_vendedor) {
+                        $gl->where('ID_Vendedor', $filtro_vendedor);
+                    })->where(function ($sub) use ($data_pesquisa) {
+                        $sub->whereDate('data_ultima_verificacao', '!=', $data_pesquisa)
+                            ->orWhereNull('data_ultima_verificacao');
+                    });
+                });
+            } elseif ($filtro_status === 'sem_link') {
+                $queryProdutos->whereDoesntHave('alvos', function ($q) use ($filtro_vendedor) {
+                    $q->whereHas('linkExterno.globalLink', function ($gl) use ($filtro_vendedor) {
+                        $gl->where('ID_Vendedor', $filtro_vendedor);
+                    });
+                });
+            }
         }
 
-        $resultados = $query->orderBy('data_ultima_verificacao', 'desc')
-            ->paginate(20);
+        $produtos = $queryProdutos->orderBy('Nome', 'ASC')->paginate($limit, ['*'], 'p', $page);
+
+        // 4. Matriz de Status
+        $skusPagina = $produtos->pluck('SKU')->toArray();
+        $dadosMatriz = [];
+
+        if (!empty($skusPagina)) {
+            $dadosRaw = DB::table('links_externos as le')
+                ->join('global_links as gl', 'le.global_link_id', '=', 'gl.id')
+                ->leftJoin('concorrentes as c', function ($join) use ($data_pesquisa) {
+                    $join->on('le.id', '=', 'c.id_link_externo')
+                        ->whereDate('c.data_extracao', $data_pesquisa);
+                })
+                ->where('le.id_organizacao', $id_organizacao)
+                ->whereIn('le.SKU', $skusPagina)
+                ->select('le.SKU', 'gl.ID_Vendedor', 'c.id as tem_concorrente')
+                ->get();
+
+            foreach ($dadosRaw as $d) {
+                $status = $d->tem_concorrente ? 'pesquisado' : 'nao_pesquisado';
+                $dadosMatriz[$d->SKU][$d->ID_Vendedor] = $status;
+            }
+        }
+
+        // 5. Formatar
+        $produtosFormatados = [];
+        foreach ($produtos as $prod) {
+            $statusPorVendedor = [];
+            foreach ($vendedores as $vend) {
+                $vid = $vend->ID_Vendedor;
+                $status = $dadosMatriz[$prod->SKU][$vid] ?? 'sem_link';
+                $statusPorVendedor[$vid] = $status;
+            }
+            $produtosFormatados[] = [
+                'ID' => $prod->ID,
+                'SKU' => $prod->SKU,
+                'Nome' => $prod->Nome,
+                'status' => $statusPorVendedor
+            ];
+        }
 
         return response()->json([
-            'data' => $resultados->items(),
-            'current_page' => $resultados->currentPage(),
-            'last_page' => $resultados->lastPage(),
-            'total' => $resultados->total(),
+            'success' => true,
+            'data' => [
+                'vendedores' => $vendedores,
+                'produtos' => $produtosFormatados
+            ],
+            'pagination' => [
+                'currentPage' => $produtos->currentPage(),
+                'totalPages' => $produtos->lastPage(),
+                'totalRows' => $produtos->total()
+            ]
         ]);
     }
 }

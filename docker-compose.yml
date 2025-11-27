@@ -1,4 +1,3 @@
-
 services:
   # --- 1. O SITE (LARAVEL + PHP) ---
   app:
@@ -12,12 +11,16 @@ services:
     volumes:
       - .:/var/www
     environment:
-      # Passa o DSN do Sentry para o Laravel
+      # Configuração Sentry (DSN + API para Dashboard)
       - SENTRY_LARAVEL_DSN=${SENTRY_LARAVEL_DSN}
+      - SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}
+      - SENTRY_ORG_SLUG=${SENTRY_ORG_SLUG}
+      - SENTRY_PROJECT_SLUG=${SENTRY_PROJECT_SLUG}
     networks:
       - foconopreco-network
     secrets:
       - db_password
+      - sentry_auth_token
 
   # --- 2. O SERVIDOR WEB (NGINX) ---
   webserver:
@@ -121,6 +124,8 @@ services:
       - foconopreco-network
     secrets:
       - db_password
+      - brightdata_user      
+      - brightdata_password  
 
   # Worker de IA (Geração de Texto/Análise)
   worker_ia:
@@ -135,7 +140,7 @@ services:
     environment:
       - DB_HOST=db
       - REDIS_URL=redis://redis:6379
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      # OPENAI_API_KEY=${OPENAI_API_KEY}
       # Monitoramento Sentry
       - SENTRY_DSN=${SENTRY_LARAVEL_DSN}
     depends_on:
@@ -163,7 +168,7 @@ services:
     environment:
       - DB_HOST=db
       - REDIS_URL=redis://redis:6379
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      # OPENAI_API_KEY=${OPENAI_API_KEY}
       # Monitoramento Sentry
       - SENTRY_DSN=${SENTRY_LARAVEL_DSN}
     depends_on:
@@ -353,8 +358,6 @@ services:
       - db_password
 
 
-
-
 # --- STACK DE MONITORAMENTO ---
 
   # 1. PROMETHEUS (Coletor de Métricas)
@@ -452,5 +455,9 @@ secrets:
     file: ./secrets/db_root_password.txt
   gemini_api_key:       
     file: ./secrets/gemini_api_key.txt
-  
-
+  brightdata_user:
+    file: ./secrets/brightdata_user.txt
+  brightdata_password:
+    file: ./secrets/brightdata_password.txt
+  sentry_auth_token:
+    file: ./secrets/sentry_auth_token.txt
