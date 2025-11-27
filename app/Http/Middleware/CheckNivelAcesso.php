@@ -4,34 +4,20 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Auth;
-use App\Models\User;
 
 class CheckNivelAcesso
 {
-    /**
-     * Handle an incoming request.
-     *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
-     * @param  string  $role  (admin, colaborador, etc)
-     */
-    public function handle(Request $request, Closure $next, string $role): Response
+    public function handle(Request $request, Closure $next, $nivelNecessario)
     {
-        // 1. Verifica se está logado
         if (!Auth::check()) {
-            return redirect()->route('login');
+            return redirect('/login');
         }
 
-        $user = Auth::user();
-
-        // 2. Lógica de verificação baseada no parametro $role
-        if ($role === 'admin' && !$user->isAdmin()) {
-            abort(403, 'Acesso não autorizado. Apenas administradores.');
+        // Se o nível do usuário for MAIOR (ou seja, menos poder) que o necessário
+        if (Auth::user()->nivel_acesso > $nivelNecessario) {
+            abort(403, 'Acesso não autorizado.');
         }
-
-        // Se quisermos ser estritos com colaboradores no futuro:
-        // if ($role === 'colaborador' && ... )
 
         return $next($request);
     }

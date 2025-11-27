@@ -404,9 +404,10 @@ services:
     image: gcr.io/cadvisor/cadvisor:v0.47.0
     container_name: foconopreco_cadvisor
     restart: unless-stopped
-    privileged: true
+    # privileged: true
+    read_only: true
     # Correção essencial para leitura de métricas em hosts modernos
-    cgroupns: host
+    # cgroupns: host
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
@@ -441,6 +442,8 @@ secrets:
     file: ./secrets/db_root_password.txt
   gemini_api_key:       
     file: ./secrets/gemini_api_key.txt
+  google_api_key:
+    file: ./secrets/google_api_key.txt
   
   # --- NOVOS SECRETS ---
   grafana_password:

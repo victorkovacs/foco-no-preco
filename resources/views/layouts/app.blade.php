@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     
-    {{-- --- NOVO: Configuração do Sentry --- --}}
     <meta name="sentry-dsn" content="{{ config('sentry.dsn') }}">
 
     <title>Anhanguera Ferramentas - @yield('title', 'Painel')</title>
@@ -41,35 +40,31 @@
             
             @php 
                 $user = Auth::user();
-                // Helpers baseados no Model User (certifique-se que isAdmin e isColaborador existem lá)
-                $isAdmin = $user->isAdmin(); 
-                $isColaborador = $user->isColaborador();
-                // Mantendo lógica para o Nível 3 (Redator/Freela) caso não tenha helper
-                $isRedator = $user->nivel_acesso == 3;
+                // Usa os helpers definidos no Model User (Passo 1)
+                $isMaster = $user->isMaster();      // Nível 1
+                $isAdmin  = $user->isAdmin();       // Nível 1, 2
+                $canEdit  = $user->canEdit();       // Nível 1, 2, 3
             @endphp
 
-            {{-- 1. DASHBOARD (Admin e Colaborador) --}}
-            @if($isAdmin || $isColaborador)
-                <a href="{{ route('dashboard') }}" 
-                   class="flex items-center p-3 rounded-r-lg {{ request()->routeIs('dashboard') || request()->routeIs('dashboard.*') ? 'nav-item-active' : 'nav-item-inactive' }}">
-                    <i data-lucide="layout-dashboard" class="w-5 h-5 mr-3"></i>
-                    <span class="font-medium">Dashboard</span>
-                </a>
-            @endif
+            {{-- 1. VISUALIZAÇÃO GERAL (Todos os Níveis) --}}
+            <a href="{{ route('dashboard') }}" 
+               class="flex items-center p-3 rounded-r-lg {{ request()->routeIs('dashboard') || request()->routeIs('dashboard.*') ? 'nav-item-active' : 'nav-item-inactive' }}">
+                <i data-lucide="layout-dashboard" class="w-5 h-5 mr-3"></i>
+                <span class="font-medium">Dashboard</span>
+            </a>
 
-            {{-- 2. MEUS PRODUTOS (Admin e Colaborador) --}}
-            @if($isAdmin || $isColaborador)
-                <a href="{{ route('produtos.index') }}" 
-                   class="flex items-center p-3 rounded-r-lg {{ request()->routeIs('produtos.index') ? 'nav-item-active' : 'nav-item-inactive' }}">
-                    <i data-lucide="package" class="w-5 h-5 mr-3"></i>
-                    <span class="font-medium">Meus Produtos</span>
-                </a>
-            @endif
+            <a href="{{ route('produtos.index') }}" 
+               class="flex items-center p-3 rounded-r-lg {{ request()->routeIs('produtos.index') ? 'nav-item-active' : 'nav-item-inactive' }}">
+                <i data-lucide="package" class="w-5 h-5 mr-3"></i>
+                <span class="font-medium">Produtos</span>
+            </a>
 
-            {{-- 3. GESTÃO DB (Admin e Colaborador) --}}
-            @if($isAdmin || $isColaborador)
-                <div x-data="{ open: {{ request()->routeIs('produtos.gerenciar') || request()->routeIs('concorrentes.*') || request()->routeIs('curadoria.*') || request()->routeIs('custos_ia.*') || request()->routeIs('ia_manual.*') || request()->routeIs('users.*') ? 'true' : 'false' }} }">
-                    
+            {{-- 2. OPERACIONAL / CADASTRO (Nível 3+) --}}
+            @if($canEdit)
+                <div class="mt-4 px-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Operacional</div>
+
+                {{-- Gestão Avançada de Produtos --}}
+                <div x-data="{ open: {{ request()->routeIs('produtos.gerenciar') || request()->routeIs('curadoria.*') || request()->routeIs('ia_manual.*') ? 'true' : 'false' }} }">
                     <button type="button" 
                             @click="open = !open" 
                             class="w-full flex items-center justify-between p-3 rounded-r-lg nav-item-inactive focus:outline-none group text-left transition-colors">
@@ -81,68 +76,18 @@
                     </button>
                     
                     <div x-show="open" x-transition class="pl-6 mt-1 space-y-1 text-sm border-l border-white/10 ml-4">
-                        
-                        {{-- Visível para Admin e Colaborador --}}
                         <a href="{{ route('produtos.gerenciar') }}" class="block p-2 rounded text-gray-400 hover:text-white hover:bg-white/5 {{ request()->routeIs('produtos.gerenciar') ? 'text-white font-semibold' : '' }}">
                             Edição dos produtos
                         </a>
-                        
-                        <a href="{{ route('concorrentes.index') }}" class="block p-2 rounded text-gray-400 hover:text-white hover:bg-white/5 {{ request()->routeIs('concorrentes.*') ? 'text-white font-semibold' : '' }}">
-                            Gerencia Concorrentes
-                        </a>
-
                         <a href="{{ route('curadoria.index') }}" class="block p-2 rounded text-gray-400 hover:text-white hover:bg-white/5 {{ request()->routeIs('curadoria.*') ? 'text-white font-semibold' : '' }}">
                             Curadoria
                         </a>
-
                         <a href="{{ route('ia_manual.index') }}" class="block p-2 rounded text-gray-400 hover:text-white hover:bg-white/5 {{ request()->routeIs('ia_manual.*') ? 'text-white font-semibold' : '' }}">
                             Revalidar IA Manual
                         </a>
-
-                        {{-- EXCLUSIVO ADMIN --}}
-                        @if($isAdmin)
-                            <div class="pt-2 mt-2 border-t border-white/10">
-                                <span class="text-xs text-gray-500 px-2 uppercase font-bold tracking-wider">Admin</span>
-                                
-                                <a href="{{ route('custos_ia.index') }}" class="block p-2 rounded text-gray-400 hover:text-white hover:bg-white/5 {{ request()->routeIs('custos_ia.*') ? 'text-white font-semibold' : '' }}">
-                                    Custos de IA
-                                </a>
-
-                                <a href="{{ route('users.index') }}" class="block p-2 rounded text-gray-400 hover:text-white hover:bg-white/5 {{ request()->routeIs('users.*') ? 'text-white font-semibold' : '' }}">
-                                    Gestão de Usuários
-                                </a>
-                            </div>
-                        @endif
-                        @if($isAdmin)
-                            <div class="pt-2 mt-2 border-t border-white/10">
-                                <span class="text-xs text-gray-500 px-2 uppercase font-bold tracking-wider">Admin System</span>
-                                
-                                <a href="{{ route('custos_ia.index') }}" class="...">...</a>
-
-                                <a href="{{ route('dlq.index') }}" 
-                                class="block p-2 rounded text-gray-400 hover:text-white hover:bg-white/5 {{ request()->routeIs('dlq.*') ? 'text-red-400 font-semibold bg-white/5' : '' }}">
-                                    <div class="flex items-center">
-                                        <i data-lucide="alert-triangle" class="w-4 h-4 mr-2"></i>
-                                        Monitor de Erros
-                                    </div>
-                                </a>
-                            </div>
-                        @endif
-                        @if($isAdmin)
-                            <a href="{{ route('infra.index') }}"
-                                class="flex items-center p-2 rounded text-gray-400 hover:text-white hover:bg-white/5 mb-1 {{ request()->routeIs('infra.index') ? 'text-green-400 font-semibold bg-white/5' : '' }}">
-                                <i data-lucide="activity" class="w-4 h-4 mr-3 {{ request()->routeIs('infra.index') ? 'text-green-400' : 'text-green-600' }}"></i>
-                                <span>Infraestrutura</span>
-                            </a>
-                        @endif
                     </div>
                 </div>
-            @endif
-            
 
-            {{-- 4. CADASTRO PRODUTO (Admin e Nível 3/Redator) --}}
-            {{-- Colaborador (0) NÃO vê isso na sua regra original, mantive assim --}}
-            @if($isAdmin || $isRedator)
                 <a href="{{ route('produtos_dashboard.index') }}" 
                    class="flex items-center p-3 rounded-r-lg {{ request()->routeIs('produtos_dashboard.*') ? 'nav-item-active' : 'nav-item-inactive' }}">
                     <i data-lucide="file-text" class="w-5 h-5 mr-3"></i>
@@ -150,22 +95,67 @@
                 </a>
             @endif
 
-            {{-- 5. TEMPLATE I.A (Apenas Admin) --}}
-            {{-- ATENÇÃO: Se o Nível 3 precisar disso, avise para mudarmos a rota web.php também --}}
+
+            {{-- 3. ADMINISTRAÇÃO (Nível 2+) --}}
             @if($isAdmin)
-                <a href="{{ route('templates_ia.index') }}" 
-                   class="flex items-center p-3 rounded-r-lg {{ request()->routeIs('templates_ia.*') ? 'nav-item-active' : 'nav-item-inactive' }}">
-                    <i data-lucide="cpu" class="w-5 h-5 mr-3"></i>
-                    <span class="font-medium">Template I.A</span>
+                <div class="mt-4 px-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Administração</div>
+
+                <a href="{{ route('users.index') }}" 
+                   class="flex items-center p-3 rounded-r-lg {{ request()->routeIs('users.*') ? 'nav-item-active' : 'nav-item-inactive' }}">
+                    <i data-lucide="users" class="w-5 h-5 mr-3"></i>
+                    <span class="font-medium">Equipe</span>
+                </a>
+
+                <a href="{{ route('concorrentes.index') }}" 
+                   class="flex items-center p-3 rounded-r-lg {{ request()->routeIs('concorrentes.*') ? 'nav-item-active' : 'nav-item-inactive' }}">
+                    <i data-lucide="store" class="w-5 h-5 mr-3"></i>
+                    <span class="font-medium">Concorrentes</span>
+                </a>
+
+                {{-- Submenu Infra --}}
+                <div x-data="{ open: {{ request()->routeIs('infra.*') || request()->routeIs('dlq.*') || request()->routeIs('templates_ia.*') ? 'true' : 'false' }} }">
+                    <button type="button" @click="open = !open" class="w-full flex items-center justify-between p-3 rounded-r-lg nav-item-inactive group">
+                        <div class="flex items-center">
+                            <i data-lucide="server" class="w-5 h-5 mr-3"></i>
+                            <span class="font-medium">Sistema</span>
+                        </div>
+                        <i data-lucide="chevron-down" class="w-4 h-4 transition-transform duration-200" :class="{'rotate-180': open}"></i>
+                    </button>
+                    <div x-show="open" x-transition class="pl-6 mt-1 space-y-1 text-sm border-l border-white/10 ml-4">
+                        <a href="{{ route('infra.index') }}" class="block p-2 rounded text-gray-400 hover:text-white {{ request()->routeIs('infra.*') ? 'text-white' : '' }}">Infraestrutura</a>
+                        <a href="{{ route('dlq.index') }}" class="block p-2 rounded text-gray-400 hover:text-red-400 {{ request()->routeIs('dlq.*') ? 'text-red-400' : '' }}">Erros (DLQ)</a>
+                        <a href="{{ route('templates_ia.index') }}" class="block p-2 rounded text-gray-400 hover:text-white {{ request()->routeIs('templates_ia.*') ? 'text-white' : '' }}">Templates IA</a>
+                    </div>
+                </div>
+            @endif
+
+
+            {{-- 4. MESTRE / DONO (Nível 1) --}}
+            @if($isMaster)
+                <div class="mt-4 px-3 text-xs font-bold text-yellow-500 uppercase tracking-wider">Master</div>
+
+                <a href="{{ route('admin.configuracoes.index') }}" 
+                   class="flex items-center p-3 rounded-r-lg {{ request()->routeIs('admin.configuracoes.*') ? 'nav-item-active' : 'nav-item-inactive' }}">
+                    <i data-lucide="settings-2" class="w-5 h-5 mr-3"></i>
+                    <span class="font-medium">Config. Globais</span>
+                </a>
+
+                <a href="{{ route('custos_ia.index') }}" 
+                   class="flex items-center p-3 rounded-r-lg {{ request()->routeIs('custos_ia.*') ? 'nav-item-active' : 'nav-item-inactive' }}">
+                    <i data-lucide="dollar-sign" class="w-5 h-5 mr-3"></i>
+                    <span class="font-medium">Custos IA</span>
                 </a>
             @endif
 
-            {{-- 6. CONFIGURAÇÕES (Todos) --}}
-            <a href="{{ route('profile.password.edit') }}" 
-               class="flex items-center p-3 rounded-r-lg {{ request()->routeIs('profile.password.*') ? 'nav-item-active' : 'nav-item-inactive' }}">
-                <i data-lucide="settings" class="w-5 h-5 mr-3"></i>
-                <span class="font-medium">Configurações</span>
-            </a>
+
+            {{-- CONFIGURAÇÕES (Comum a todos) --}}
+            <div class="mt-4 border-t border-white/10 pt-2">
+                <a href="{{ route('profile.password.edit') }}" 
+                   class="flex items-center p-3 rounded-r-lg {{ request()->routeIs('profile.password.*') ? 'nav-item-active' : 'nav-item-inactive' }}">
+                    <i data-lucide="lock" class="w-5 h-5 mr-3"></i>
+                    <span class="font-medium">Minha Senha</span>
+                </a>
+            </div>
 
         </nav>
 
@@ -180,9 +170,10 @@
                         {{ $user->email }}
                     </p>
                     <p class="text-xs flex items-center gap-1 text-gray-300">
-                        @if($isAdmin) <span class="text-yellow-400 font-bold">ADMIN</span>
-                        @elseif($isColaborador) <span class="text-blue-300">Colaborador</span>
-                        @else <span class="text-gray-400">Usuário</span>
+                        @if($isMaster) <span class="text-yellow-400 font-bold">MESTRE</span>
+                        @elseif($isAdmin) <span class="text-blue-300 font-bold">ADMIN</span>
+                        @elseif($canEdit) <span class="text-green-300">CADASTRO</span>
+                        @else <span class="text-gray-400">USUÁRIO</span>
                         @endif
                     </p>
                 </div>
@@ -225,7 +216,7 @@
         // Auto Logout por Inatividade (10 min)
         (function() {
             let inactivityTimer;
-            const timeoutDuration = 600000; // 10 minutos
+            const timeoutDuration = 600000; 
 
             function logoutUser() {
                 const form = document.getElementById('logout-form');

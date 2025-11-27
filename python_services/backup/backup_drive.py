@@ -3,11 +3,12 @@ import time
 import datetime
 import subprocess
 import sys
+import mysql.connector
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
-# Importa função de segurança do Shared (se disponível) ou define fallback
+# Tenta importar função de secrets ou usa fallback
 try:
     from python_services.shared.conectar_banco import get_docker_secret
 except ImportError:
@@ -23,126 +24,138 @@ FOLDER_ID = '1JtSFMzG189AaxkgTataV-6H2w7abl3hK'
 NOME_ARQUIVO_FIXO = 'backup_foconopreco_db.sql'
 SERVICE_ACCOUNT_FILE = '/app/service_account.json'
 
-# --- DADOS DO BANCO (LENDO DE SECRETS) ---
+# --- DADOS DO BANCO ---
 DB_HOST = os.getenv('DB_HOST', 'db')
-DB_USER = get_docker_secret('db_user', os.getenv('DB_USERNAME', 'root'))
 DB_NAME = os.getenv('DB_DATABASE', 'foconopreco')
-
-# Tenta ler do secret primeiro, depois do env
+DB_USER = get_docker_secret('db_user', os.getenv('DB_USERNAME', 'root'))
+# Tenta ler do secret db_password, se falhar tenta db_root_password
 DB_PASS = get_docker_secret('db_password', os.getenv('DB_PASSWORD'))
-# Fallback para root password se necessário
 if not DB_PASS:
     DB_PASS = get_docker_secret('db_root_password')
 
 SCOPES = ['https://www.googleapis.com/auth/drive']
 
+def get_db_connection_simple():
+    """Conexão rápida apenas para ler a configuração de horário"""
+    return mysql.connector.connect(
+        host=DB_HOST,
+        user=DB_USER,
+        password=DB_PASS,
+        database=DB_NAME
+    )
+
 def criar_dump_sql():
     if not DB_PASS:
-        print("[BACKUP] ❌ Erro Crítico: Senha do banco não encontrada (Secrets/Env vazios).")
+        print("[BACKUP] ❌ Erro: Senha do banco não encontrada.")
         return None
 
     caminho_completo = f"/tmp/{NOME_ARQUIVO_FIXO}"
-    print(f"[BACKUP] Iniciando dump do banco {DB_NAME} em {DB_HOST}...")
+    print(f"[BACKUP] Gerando dump do banco {DB_NAME}...")
     
-    # Configura ambiente seguro para passar a senha (evita expor no comando ps)
+    # Passa senha via ENV para segurança
     env_dump = os.environ.copy()
     env_dump['MYSQL_PWD'] = DB_PASS
 
-    # Comando seguro sem a senha explícita na string
-    cmd = [
-        'mysqldump',
-        '--skip-ssl',
-        '-h', DB_HOST,
-        '-u', DB_USER,
-        DB_NAME
-    ]
+    cmd = ['mysqldump', '--skip-ssl', '-h', DB_HOST, '-u', DB_USER, DB_NAME]
 
     try:
         with open(caminho_completo, 'w') as output_file:
             subprocess.run(cmd, env=env_dump, stdout=output_file, check=True)
         
-        # Verifica se o arquivo não está vazio
         if os.path.getsize(caminho_completo) > 0:
-            print(f"[BACKUP] Dump gerado com sucesso: {caminho_completo}")
+            print(f"[BACKUP] Dump gerado: {caminho_completo}")
             return caminho_completo
-        else:
-            print("[BACKUP] ❌ Erro: O arquivo de dump foi criado vazio.")
-            return None
-
-    except subprocess.CalledProcessError as e:
-        print(f"[BACKUP] ❌ Falha no mysqldump (Código {e.returncode}). Verifique se 'default-mysql-client' está instalado na imagem.")
         return None
+
     except Exception as e:
-        print(f"[BACKUP] ❌ Erro inesperado ao gerar dump: {e}")
+        print(f"[BACKUP] ❌ Erro no mysqldump: {e}")
         return None
 
 def buscar_arquivo_existente(service):
-    """Procura o ID do arquivo que vamos sobrescrever"""
     try:
         query = f"name = '{NOME_ARQUIVO_FIXO}' and '{FOLDER_ID}' in parents and trashed = false"
         results = service.files().list(q=query, fields="files(id, name)").execute()
         items = results.get('files', [])
-        
-        if not items:
-            return None
-        return items[0]['id']
+        return items[0]['id'] if items else None
     except Exception as e:
-        print(f"[BACKUP] ⚠️ Erro ao buscar arquivo no Drive: {e}")
+        print(f"[BACKUP] ⚠️ Erro busca Drive: {e}")
         return None
 
 def atualizar_drive(caminho_local):
     if not os.path.exists(SERVICE_ACCOUNT_FILE):
-        print(f"[BACKUP] ❌ Arquivo de credenciais não encontrado: {SERVICE_ACCOUNT_FILE}")
-        print("   -> Certifique-se de que 'service_account.json' está na raiz do projeto e montado no docker-compose.")
+        print(f"[BACKUP] ❌ Arquivo de credenciais não encontrado.")
         return
 
     try:
-        creds = service_account.Credentials.from_service_account_file(
-            SERVICE_ACCOUNT_FILE, scopes=SCOPES
-        )
+        creds = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
         service = build('drive', 'v3', credentials=creds)
 
         file_id = buscar_arquivo_existente(service)
         
-        if not file_id:
-            print(f"[BACKUP] ⚠️ ARQUIVO '{NOME_ARQUIVO_FIXO}' NÃO ENCONTRADO NA PASTA {FOLDER_ID}!")
-            print(f"   Ação necessária: Crie manualmente um arquivo vazio com esse nome na pasta do Google Drive.")
-            return
-
-        print(f"[BACKUP] Enviando para o Google Drive (ID: {file_id})...")
-        
         media = MediaFileUpload(caminho_local, mimetype='application/sql', resumable=True)
         
-        arquivo_atualizado = service.files().update(
-            fileId=file_id,
-            media_body=media,
-            fields='id, version, size'
-        ).execute()
+        if file_id:
+            print(f"[BACKUP] Atualizando arquivo existente (ID: {file_id})...")
+            service.files().update(fileId=file_id, media_body=media).execute()
+        else:
+            print(f"[BACKUP] Criando novo arquivo no Drive...")
+            file_metadata = {'name': NOME_ARQUIVO_FIXO, 'parents': [FOLDER_ID]}
+            service.files().create(body=file_metadata, media_body=media).execute()
 
-        print(f"[BACKUP] ✅ SUCESSO TOTAL! Backup sincronizado. Versão: {arquivo_atualizado.get('version')}, Tamanho: {arquivo_atualizado.get('size')} bytes.")
+        print(f"[BACKUP] ✅ Upload concluído com sucesso!")
 
     except Exception as e:
-        print(f"[BACKUP] ❌ Erro na API do Google Drive: {e}")
+        print(f"[BACKUP] ❌ Erro API Google: {e}")
+
+def aguardar_horario_backup():
+    """Lê configuração do banco e dorme até a hora do backup"""
+    horario_padrao = '00:01'
+    try:
+        conn = get_db_connection_simple()
+        cursor = conn.cursor()
+        cursor.execute("SELECT valor FROM configuracoes_sistema WHERE chave = 'horario_backup'")
+        row = cursor.fetchone()
+        conn.close()
+        horario_alvo = row[0] if row else horario_padrao
+    except:
+        horario_alvo = horario_padrao
+
+    agora = datetime.datetime.now()
+    try:
+        h, m = map(int, horario_alvo.split(':'))
+    except:
+        h, m = 0, 1
+
+    proximo = agora.replace(hour=h, minute=m, second=0, microsecond=0)
+    
+    if agora >= proximo:
+        proximo += datetime.timedelta(days=1)
+        
+    segundos = (proximo - agora).total_seconds()
+    horas = segundos / 3600
+    
+    print(f"--- [AGENDADOR BACKUP] Horário alvo: {horario_alvo} ---")
+    print(f"--- [AGENDADOR BACKUP] Dormindo por {horas:.2f} horas... ---")
+    
+    time.sleep(segundos)
 
 def main():
-    print(f"--- ROBÔ DE BACKUP [{datetime.datetime.now()}] ---")
-    arquivo_sql = criar_dump_sql()
-    
-    if arquivo_sql:
-        atualizar_drive(arquivo_sql)
-        # Limpeza
-        if os.path.exists(arquivo_sql):
-            os.remove(arquivo_sql)
-            print("[BACKUP] Arquivo temporário removido.")
-
-if __name__ == '__main__':
-    print("[SISTEMA] Serviço de Backup Iniciado. (Ciclo: 24h)")
-    
-    # Executa imediatamente na primeira vez para validar
-    main()
+    print(f"--- ROBÔ DE BACKUP INICIADO ---")
     
     while True:
-        print("[SISTEMA] Dormindo por 24 horas...")
-        sys.stdout.flush() # Garante que o log apareça no Docker
-        time.sleep(86400)
-        main()
+        # 1. Dorme até o horário configurado
+        aguardar_horario_backup()
+        
+        # 2. Executa Backup
+        print(f"[BACKUP] ⏰ Hora do backup! Iniciando...")
+        arquivo = criar_dump_sql()
+        if arquivo:
+            atualizar_drive(arquivo)
+            if os.path.exists(arquivo):
+                os.remove(arquivo)
+        
+        # 3. Pausa segura para sair do minuto exato
+        time.sleep(60)
+
+if __name__ == '__main__':
+    main()

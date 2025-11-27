@@ -5,44 +5,57 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens; // <--- O Sanctum que instalamos
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable;
 
-    // --- CONSTANTES DE NÍVEL DE ACESSO ---
-    const NIVEL_COLABORADOR = 2;
-    const NIVEL_ADMIN = 1;
-
-    protected $table = 'Usuarios';
-    public $timestamps = false;
-
-    // CORREÇÃO DE SEGURANÇA:
-    // Removemos 'nivel_acesso', 'id_organizacao' e 'ativo' para evitar Mass Assignment.
-    // Esses campos agora só podem ser alterados via atribuição direta no código ($user->campo = valor).
     protected $fillable = [
+        'name',
         'email',
-        'senha_hash',
-        'api_key',
+        'password',
+        'nivel_acesso',
     ];
 
     protected $hidden = [
-        'senha_hash',
+        'password',
         'remember_token',
     ];
 
-    public function getAuthPassword()
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+    ];
+
+    // --- DEFINIÇÃO DOS NÍVEIS (Automação da Lógica) ---
+    const NIVEL_MESTRE   = 1;
+    const NIVEL_ADMIN    = 2;
+    const NIVEL_CADASTRO = 3;
+    const NIVEL_USUARIO  = 4;
+
+    // --- HELPERS PARA O SISTEMA ---
+
+    public function isMaster()
     {
-        return $this->senha_hash;
+        return $this->nivel_acesso === self::NIVEL_MESTRE;
     }
 
-    public function isAdmin(): bool
+    public function isAdmin()
     {
-        return $this->nivel_acesso === self::NIVEL_ADMIN;
+        // Mestre também é Admin
+        return $this->nivel_acesso <= self::NIVEL_ADMIN;
     }
 
-    public function isColaborador(): bool
+    public function canEdit()
     {
-        return $this->nivel_acesso === self::NIVEL_COLABORADOR;
+        // Mestre, Admin e Cadastro podem editar
+        return $this->nivel_acesso <= self::NIVEL_CADASTRO;
+    }
+
+    // Helper de compatibilidade (se ainda usar no código antigo)
+    public function isColaborador()
+    {
+        return $this->canEdit();
     }
 }

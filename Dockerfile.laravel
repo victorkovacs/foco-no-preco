@@ -1,9 +1,34 @@
+# ==============================================================================
+# ESTÁGIO 1: Build do Frontend (Node.js)
+# ==============================================================================
+# Usamos uma imagem Node apenas para compilar os assets (CSS/JS)
+FROM node:20 AS frontend_builder
+
+WORKDIR /app
+
+# Copia apenas os arquivos de dependência primeiro (para cache do Docker)
+COPY package*.json vite.config.mjs tailwind.config.js ./
+
+# Instala as dependências do Node (npm ci é mais rápido e seguro para CI/CD)
+RUN npm ci
+
+# Copia os arquivos fonte do frontend
+COPY resources ./resources
+COPY public ./public
+
+# Compila os assets para produção (gera a pasta public/build)
+RUN npm run build
+
+# ==============================================================================
+# ESTÁGIO 2: Aplicação Final (PHP)
+# ==============================================================================
+# Esta é a imagem que vai realmente para produção. Sem Node.js instalado.
 FROM php:8.2-fpm
 
-# 1. Instala dependências do sistema (+ GNUPG para validar o Node.js)
+# 1. Instala dependências do sistema necessárias para o Laravel e Extensões PHP
+# Removemos GNUPG e CURL do Node, pois não precisamos mais baixar Node aqui
 RUN apt-get update && apt-get install -y \
     git \
-    curl \
     libpng-dev \
     libonig-dev \
     libxml2-dev \
@@ -11,15 +36,7 @@ RUN apt-get update && apt-get install -y \
     libzip-dev \
     zip \
     unzip \
-    gnupg \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# --- NOVO: Instala Node.js 20 (LTS) e NPM ---
-# Isso permite compilar o JS/CSS dentro do container automaticamente
-RUN mkdir -p /etc/apt/keyrings \
-    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
-    && apt-get update && apt-get install -y nodejs
 
 # 2. Instala Extensões do PHP
 RUN pecl install redis \
@@ -27,24 +44,30 @@ RUN pecl install redis \
     && docker-php-ext-configure intl \
     && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd intl zip
 
-# 3. Instala o Composer
+# 3. Instala o Composer (Copiado da imagem oficial)
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # 4. Configuração de Diretório
 WORKDIR /var/www
 
-# 5. Copia os arquivos do projeto
+# 5. Copia os arquivos do Backend
+# (Nota: Em produção, costumamos copiar o composer.json primeiro para cache, 
+# mas copiando tudo funciona bem para este contexto)
 COPY . .
 
-# 6. Instala dependências do Backend (PHP)
-RUN composer install --no-interaction --optimize-autoloader
+# 6. Copia os ASSETS COMPILADOS do Estágio 1
+# Aqui está a mágica: Pegamos apenas a pasta 'build' pronta.
+COPY --from=frontend_builder /app/public/build /var/www/public/build
 
-# --- NOVO: Instala dependências do Frontend e Compila (Vite) ---
-# Isso gera a pasta public/build com o JS do Sentry já configurado
-RUN npm install && npm run build
+# 7. Instala dependências do PHP (Otimizado para Produção)
+# --no-dev: Não instala phpunit/faker/mockery
+# --optimize-autoloader: Melhora a performance do carregamento de classes
+RUN composer install --no-interaction --optimize-autoloader --no-dev
 
-# 7. Permissões finais
+# 8. Ajusta permissões
+# Garante que o usuário do servidor web (www-data) possa escrever nos logs e cache
 RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
 
+# 9. Finalização
 EXPOSE 9000
 CMD ["php-fpm"]
