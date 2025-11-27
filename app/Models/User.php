@@ -17,12 +17,12 @@ class User extends Authenticatable
     protected $table = 'Usuarios';
     public $timestamps = false;
 
+    // CORREÇÃO DE SEGURANÇA:
+    // Removemos 'nivel_acesso', 'id_organizacao' e 'ativo' para evitar Mass Assignment.
+    // Esses campos agora só podem ser alterados via atribuição direta no código ($user->campo = valor).
     protected $fillable = [
         'email',
         'senha_hash',
-        'nivel_acesso',
-        'ativo',
-        'id_organizacao',
         'api_key',
     ];
 
@@ -36,11 +36,8 @@ class User extends Authenticatable
         return $this->senha_hash;
     }
 
-    // --- AQUI ESTÃO AS FUNÇÕES QUE FALTAVAM ---
-
     public function isAdmin(): bool
     {
-        // Verifica se a coluna 'nivel_acesso' é igual a 1
         return $this->nivel_acesso === self::NIVEL_ADMIN;
     }
 

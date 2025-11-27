@@ -381,7 +381,7 @@ services:
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
     ports:
-      - "3000:3000" # Mantido público para acesso ao dashboard (proteja com senha forte!)
+      - "127.0.0.1:3000:3000" # Mantido público para acesso ao dashboard (proteja com senha forte!)
     depends_on:
       - prometheus
     networks:
