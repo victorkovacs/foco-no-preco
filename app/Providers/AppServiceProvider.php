@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Gate;
+use App\Models\User;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,6 +21,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Define a regra de autorização 'admin-access'
+        // Verifica se o nível de acesso do usuário é 1 (Admin)
+        Gate::define('admin-access', function (User $user) {
+            return $user->nivel_acesso === 1;
+        });
     }
 }
