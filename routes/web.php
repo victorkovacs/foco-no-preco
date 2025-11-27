@@ -2,7 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
-use App\Models\User; // Importante para usar as constantes de Nível
+use App\Models\User;
 
 // Controllers
 use App\Http\Controllers\Auth\LoginController;
@@ -18,7 +18,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\DetalheController;
 use App\Http\Controllers\ProdutoDashboardController;
 use App\Http\Controllers\ExportController;
-use App\Http\Controllers\ConfiguracaoController; // Controller Novo
+use App\Http\Controllers\ConfiguracaoController;
 
 // Redirecionamento inicial
 Route::get('/', function () {
@@ -38,11 +38,23 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 // ==============================================================================
 Route::middleware('auth')->group(function () {
 
-    // --- ACESSO BÁSICO (Nível 4 - Usuário Comum e superiores) ---
-    // Todos os logados podem ver Dashboard e alterar própria senha
+    // --- ROTA DE ENTRADA INTELIGENTE ---
+    // Redireciona baseada no papel do usuário
+    Route::get('/index', function () {
+        $user = Auth::user();
 
+        // Se for nivel CADASTRO (3), vai direto para gestão de produtos
+        if ($user->nivel_acesso == User::NIVEL_CADASTRO) {
+            return redirect()->route('produtos_dashboard.index');
+        }
+
+        // Os demais vão para o Dashboard
+        return redirect()->route('dashboard');
+    })->name('index');
+
+
+    // --- ACESSO BÁSICO (Nível 4 - Usuário Comum e superiores) ---
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/index', fn() => redirect()->route('dashboard'))->name('index');
     Route::get('/dashboard/detalhes', [DetalheController::class, 'index'])->name('dashboard.detalhes');
 
     // Perfil
@@ -65,6 +77,9 @@ Route::middleware('auth')->group(function () {
         // Produtos (Edição, Monitoramento, Ações)
         Route::post('/produtos/monitorar', [ProdutoController::class, 'iniciarMonitoramento'])->name('produtos.monitorar');
         Route::get('/produtos/gerenciar', [ProdutoController::class, 'gerenciar'])->name('produtos.gerenciar');
+
+        // Templates de IA
+        Route::resource('templates_ia', TemplateIaController::class);
 
         // Atualização em Massa
         Route::get('/produtos/massa', [ProdutoController::class, 'massUpdateForm'])->name('produtos.mass_update');
@@ -102,7 +117,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/users/list', [UserController::class, 'list'])->name('users.list');
         Route::post('/users', [UserController::class, 'store'])->name('users.store');
         Route::put('/users/{id}', [UserController::class, 'update'])->name('users.update');
-        Route::delete('/users/{id}', [UserController::class, 'destroy'])->name('users.destroy'); // Admin pode excluir user
+        Route::delete('/users/{id}', [UserController::class, 'destroy'])->name('users.destroy');
 
         // Gestão de Concorrentes/Vendedores
         Route::get('/concorrentes', [VendedorController::class, 'index'])->name('concorrentes.index');
@@ -113,8 +128,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/admin/dlq', [App\Http\Controllers\DlqController::class, 'index'])->name('dlq.index');
         Route::delete('/admin/dlq/clear', [App\Http\Controllers\DlqController::class, 'clear'])->name('dlq.clear');
 
-        // Templates de IA
-        Route::resource('templates_ia', TemplateIaController::class);
+
 
         // Ações Destrutivas em Produtos (Excluir)
         Route::delete('/produtos/{id}', [ProdutoController::class, 'destroy'])->name('produtos.destroy');

@@ -281,7 +281,8 @@
             
             if(result.success) {
                 renderizarGrafico(result.data);
-                renderizarTabela(result.data);
+                // CORREÇÃO: Usando 'tableData' que contém apenas dados de hoje
+                renderizarTabela(result.tableData);
             } else {
                 tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-500">Erro ao buscar dados.</td></tr>';
             }
@@ -354,12 +355,12 @@
     function renderizarTabela(data) {
         const tbody = document.getElementById('concorrentes-tbody');
         if(data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">Sem dados neste período.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">Sem dados recentes (Hoje).</td></tr>';
             return;
         }
         
-        // Ordena por data desc
-        const sorted = [...data].sort((a,b) => new Date(b.data_extracao) - new Date(a.data_extracao));
+        // Ordena por menor preço primeiro (mais útil para a lista)
+        const sorted = [...data].sort((a,b) => parseFloat(a.preco) - parseFloat(b.preco));
         
         let html = '';
         sorted.slice(0, 10).forEach(item => {
@@ -427,7 +428,7 @@
         }
 
         // Tabela
-        doc.text('Últimas Atualizações de Preço', 10, y);
+        doc.text('Últimas Atualizações de Preço (Hoje)', 10, y);
         y += 5;
         
         const tableBody = document.getElementById('concorrentes-tbody');

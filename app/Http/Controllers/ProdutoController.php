@@ -74,7 +74,7 @@ class ProdutoController extends Controller
 
     public function getDadosGrafico(Request $request)
     {
-        // CORREÇÃO DE SEGURANÇA: Validação dos inputs antes de usar
+        // Validação dos inputs
         $request->validate([
             'sku' => 'required|string',
             'data_inicio' => 'required|date_format:Y-m-d',
@@ -86,18 +86,34 @@ class ProdutoController extends Controller
         $data_inicio = $request->input('data_inicio');
         $data_fim = $request->input('data_fim');
 
-        $dados = DB::table('concorrentes as c')
+        // Query Base (Reutilizável para ambas as consultas)
+        $queryBase = DB::table('concorrentes as c')
             ->leftJoin('Vendedores as v', 'c.ID_Vendedor', '=', 'v.ID_Vendedor')
             ->leftJoin('links_externos as l', 'c.id_link_externo', '=', 'l.id')
             ->leftJoin('global_links as gl', 'l.global_link_id', '=', 'gl.id')
             ->where('c.id_organizacao', $id_organizacao)
             ->where('c.sku', $sku)
+            ->select('v.NomeVendedor as vendedor', 'c.preco', 'c.data_extracao', 'gl.link as link_concorrente');
+
+        // 1. Dados para o GRÁFICO (Respeita o filtro de datas selecionado pelo usuário)
+        $dadosGrafico = (clone $queryBase)
             ->whereBetween('c.data_extracao', [$data_inicio . ' 00:00:00', $data_fim . ' 23:59:59'])
-            ->select('v.NomeVendedor as vendedor', 'c.preco', 'c.data_extracao', 'gl.link as link_concorrente')
             ->orderBy('c.data_extracao', 'asc')
             ->get();
 
-        return response()->json(['success' => true, 'data' => $dados]);
+        // 2. Dados para a TABELA (Sempre exibe dados de HOJE)
+        $hoje = now()->format('Y-m-d');
+        $dadosTabela = (clone $queryBase)
+            ->whereBetween('c.data_extracao', [$hoje . ' 00:00:00', $hoje . ' 23:59:59'])
+            ->orderBy('c.preco', 'asc') // Ordenar tabela por menor preço faz sentido para comparação
+            ->get();
+
+        // Retorna separados: 'data' para o gráfico, 'tableData' para a lista
+        return response()->json([
+            'success' => true,
+            'data' => $dadosGrafico,
+            'tableData' => $dadosTabela
+        ]);
     }
 
     public function iniciarMonitoramento(Request $request)

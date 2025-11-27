@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
+use App\Models\User;
 
 class LoginController extends Controller
 {
@@ -47,7 +48,13 @@ class LoginController extends Controller
                 ]);
             }
 
-            return redirect()->intended('/dashboard');
+            // Lógica de Redirecionamento Baseada no Nível
+            if ($user->nivel_acesso == User::NIVEL_CADASTRO) {
+                return redirect()->route('produtos_dashboard.index');
+            }
+
+            // Padrão para os demais níveis (Mestre, Admin, Usuário)
+            return redirect()->route('dashboard');
         }
 
         // Falha

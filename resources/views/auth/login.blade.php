@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Mercado Scan</title>
+    <link rel="icon" type="image/png" href="https://anhangueraferramentas.fbitsstatic.net/sf/img/favicon/apple-touch-icon.png">
     
     {{-- Carrega os estilos e scripts --}}
     @vite(['resources/css/app.css', 'resources/js/app.js'])
