@@ -23,7 +23,9 @@ Route::get('/', function () {
 
 // --- AUTENTICAÇÃO (Rotas Públicas) ---
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
-Route::post('/login', [LoginController::class, 'authenticate']);
+Route::middleware('throttle:5,1')->group(function () {
+    Route::post('/login', [LoginController::class, 'authenticate']);
+});
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 // --- ROTAS PROTEGIDAS (Qualquer usuário logado) ---

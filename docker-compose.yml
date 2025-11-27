@@ -11,11 +11,7 @@ services:
     volumes:
       - .:/var/www
     environment:
-      # Configuração Sentry (DSN + API para Dashboard)
       - SENTRY_LARAVEL_DSN=${SENTRY_LARAVEL_DSN}
-      - SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}
-      - SENTRY_ORG_SLUG=${SENTRY_ORG_SLUG}
-      - SENTRY_PROJECT_SLUG=${SENTRY_PROJECT_SLUG}
     networks:
       - foconopreco-network
     secrets:
@@ -28,7 +24,7 @@ services:
     container_name: foconopreco_webserver
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "80:80" # Porta pública do site (única aberta para a internet)
     volumes:
       - .:/var/www
       - ./docker/nginx:/etc/nginx/conf.d
@@ -50,7 +46,9 @@ services:
       MYSQL_USER: ${DB_USERNAME}
       TZ: America/Sao_Paulo
     ports:
-      - "3306:3306"
+      # SEGURANÇA: Vincula apenas ao localhost (127.0.0.1)
+      # Bloqueia acesso direto via IP externo
+      - "127.0.0.1:3306:3306"
     volumes:
       - dbdata:/var/lib/mysql
     networks:
@@ -64,7 +62,7 @@ services:
       timeout: 20s
       retries: 10
 
-  # --- 4. PHPMYADMIN (VISUALIZADOR DO BANCO) ---
+  # --- 4. PHPMYADMIN ---
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
     container_name: foconopreco_pma
@@ -74,7 +72,9 @@ services:
       PMA_PASSWORD_FILE: /run/secrets/db_root_password
       UPLOAD_LIMIT: 64M
     ports:
-      - "8080:80"
+      # SEGURANÇA: Apenas localhost. 
+      # Para acessar, use Tunel SSH: ssh -L 8080:localhost:8080 user@ip-servidor
+      - "127.0.0.1:8080:80"
     depends_on:
       - db
     networks:
@@ -88,7 +88,8 @@ services:
     container_name: foconopreco_redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      # SEGURANÇA: Apenas localhost
+      - "127.0.0.1:6379:6379"
     networks:
       - foconopreco-network
     healthcheck:
@@ -97,9 +98,7 @@ services:
       timeout: 10s
       retries: 5
 
-  # --- 6. WORKERS CELERY (PROCESSADORES PESADOS) ---
-  
-  # Worker de Coleta de Preços (Scraping)
+  # --- 6. WORKERS CELERY ---
   worker_scrape:
     build:
       context: .
@@ -112,7 +111,6 @@ services:
     environment:
       - DB_HOST=db
       - REDIS_URL=redis://redis:6379
-      # Monitoramento Sentry
       - SENTRY_DSN=${SENTRY_LARAVEL_DSN}
     depends_on:
       db:
@@ -125,9 +123,8 @@ services:
     secrets:
       - db_password
       - brightdata_user      
-      - brightdata_password  
+      - brightdata_password
 
-  # Worker de IA (Geração de Texto/Análise)
   worker_ia:
     build:
       context: .
@@ -140,8 +137,6 @@ services:
     environment:
       - DB_HOST=db
       - REDIS_URL=redis://redis:6379
-      # OPENAI_API_KEY=${OPENAI_API_KEY}
-      # Monitoramento Sentry
       - SENTRY_DSN=${SENTRY_LARAVEL_DSN}
     depends_on:
       db:
@@ -155,7 +150,6 @@ services:
       - db_password
       - gemini_api_key
 
-  # Worker de Conteúdo (Blog/SEO)
   worker_conteudo:
     build:
       context: .
@@ -168,8 +162,6 @@ services:
     environment:
       - DB_HOST=db
       - REDIS_URL=redis://redis:6379
-      # OPENAI_API_KEY=${OPENAI_API_KEY}
-      # Monitoramento Sentry
       - SENTRY_DSN=${SENTRY_LARAVEL_DSN}
     depends_on:
       db:
@@ -182,9 +174,9 @@ services:
     secrets:
       - db_password
       - gemini_api_key
+      - google_api_key
 
-  # --- 7. ROBÔS SCRIPTS (COLETORES E PRODUTORES) ---
-
+  # --- 7. ROBÔS SCRIPTS ---
   coletor_scrape:
     build:
       context: .
@@ -357,18 +349,14 @@ services:
     secrets:
       - db_password
 
-
 # --- STACK DE MONITORAMENTO ---
 
-  # 1. PROMETHEUS (Coletor de Métricas)
   prometheus:
     image: prom/prometheus:latest
     container_name: foconopreco_prometheus
     restart: unless-stopped
     volumes:
-      # Monta o arquivo de configuração que criamos
       - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      # Volume persistente para não perder o histórico se reiniciar
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -376,33 +364,31 @@ services:
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090" # Protegido contra acesso externo
     networks:
       - foconopreco-network
 
-  # 2. GRAFANA (Visualização)
   grafana:
     image: grafana/grafana:latest
     container_name: foconopreco_grafana
     restart: unless-stopped
     volumes:
-      # Salva usuários e dashboards criados
       - grafana_data:/var/lib/grafana
     environment:
-      # Senha inicial (troque no primeiro login ou use Secrets para produção real)
       - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_SECURITY_ALLOW_EMBEDDING=true          # Permite Iframe
-      - GF_AUTH_ANONYMOUS_ENABLED=true            # Permite ver sem logar (Opcional)
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer         # Acesso apenas de leitura
+      - GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/grafana_password
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
     ports:
-      - "3000:3000"
+      - "3000:3000" # Mantido público para acesso ao dashboard (proteja com senha forte!)
     depends_on:
       - prometheus
     networks:
       - foconopreco-network
+    secrets:
+      - grafana_password
 
-  # 3. REDIS EXPORTER (Tradutor do Redis)
   redis-exporter:
     image: oliver006/redis_exporter
     container_name: foconopreco_redis_exporter
@@ -414,13 +400,13 @@ services:
     networks:
       - foconopreco-network
 
-  # 4. cADVISOR (Monitor de Hardware/Containers)
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.47.0
     container_name: foconopreco_cadvisor
     restart: unless-stopped
     privileged: true
-    # Volumes necessários para ler dados do Host (Docker Desktop/Linux)
+    # Correção essencial para leitura de métricas em hosts modernos
+    cgroupns: host
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
@@ -431,7 +417,7 @@ services:
     devices:
       - /dev/kmsg
     ports:
-      - "8081:8080"
+      - "127.0.0.1:8081:8080" # Protegido contra acesso externo
     networks:
       - foconopreco-network
 
@@ -455,6 +441,10 @@ secrets:
     file: ./secrets/db_root_password.txt
   gemini_api_key:       
     file: ./secrets/gemini_api_key.txt
+  
+  # --- NOVOS SECRETS ---
+  grafana_password:
+    file: ./secrets/grafana_password.txt
   brightdata_user:
     file: ./secrets/brightdata_user.txt
   brightdata_password:

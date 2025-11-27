@@ -15,16 +15,16 @@ class SentryService
     public function __construct()
     {
         // PRIORIDADE: Tenta ler do Docker Secret. Se falhar, tenta do .env
-        $this->token = $this->getDockerSecret('sentry_auth_token') ?? env('SENTRY_AUTH_TOKEN');
+        $this->token = $this->getSecret('sentry_auth_token') ?? env('SENTRY_AUTH_TOKEN');
 
         $this->org = env('SENTRY_ORG_SLUG');
         $this->project = env('SENTRY_PROJECT_SLUG');
     }
 
     /**
-     * Função auxiliar para ler Docker Secrets em PHP
+     * Função auxiliar para ler secrets em ambiente Docker.
      */
-    private function getDockerSecret($name)
+    private function getSecret($name)
     {
         $path = "/run/secrets/{$name}";
         if (file_exists($path)) {
@@ -33,9 +33,12 @@ class SentryService
         return null;
     }
 
+    /**
+     * Busca os últimos erros não resolvidos.
+     * Cache de 60 segundos para não deixar o painel lento.
+     */
     public function getLatestIssues($limit = 6)
     {
-        // Se não tiver token (nem no secret, nem no env), retorna vazio
         if (!$this->token || !$this->org || !$this->project) {
             return [];
         }
@@ -45,9 +48,9 @@ class SentryService
                 $response = Http::withToken($this->token)
                     ->get("{$this->baseUrl}/projects/{$this->org}/{$this->project}/issues/", [
                         'limit' => $limit,
-                        'query' => 'is:unresolved',
-                        'statsPeriod' => '24h',
-                        'sort' => 'date',
+                        'query' => 'is:unresolved', // Apenas erros abertos
+                        'statsPeriod' => '24h',     // Estatísticas das últimas 24h
+                        'sort' => 'date',           // Mais recentes primeiro
                     ]);
 
                 return $response->successful() ? $response->json() : [];
