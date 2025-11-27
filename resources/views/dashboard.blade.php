@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Dashboard de Concorrência')
+@section('title', 'Dashboard')
 
 @section('content')
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
@@ -18,6 +18,12 @@
         .thermometer-bar-bg.single-fill #thermo-concorrentes-fill-sem { border-radius: 9999px; }
     </style>
 
+    {{-- 1. WIDGET DE SAÚDE DO SISTEMA (Filas, CPU, RAM) --}}
+    <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 mb-8">
+        @include('components.system-health-widget')
+    </div>
+
+    {{-- 2. DASHBOARD DE CONCORRÊNCIA --}}
     <div class="w-full max-w-6xl mx-auto bg-white shadow-xl rounded-2xl p-8 md:p-10">
         
         <h1 class="text-2xl md:text-3xl font-bold text-gray-800 mb-8 text-center">

@@ -114,7 +114,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/admin/dlq/clear', [App\Http\Controllers\DlqController::class, 'clear'])->name('dlq.clear');
 
         // Templates de IA
-        Route::resource('templates-ia', TemplateIaController::class);
+        Route::resource('templates_ia', TemplateIaController::class);
 
         // Ações Destrutivas em Produtos (Excluir)
         Route::delete('/produtos/{id}', [ProdutoController::class, 'destroy'])->name('produtos.destroy');

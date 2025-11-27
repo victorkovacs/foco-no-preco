@@ -57,6 +57,11 @@ class User extends Authenticatable
     const NIVEL_CADASTRO = 3;
     const NIVEL_USUARIO  = 4;
 
+    public function getNivelSeguro()
+    {
+        return $this->nivel_acesso ?? 99;
+    }
+
     public function isMaster()
     {
         return $this->nivel_acesso === self::NIVEL_MESTRE;
