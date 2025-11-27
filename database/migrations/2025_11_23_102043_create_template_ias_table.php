@@ -10,18 +10,20 @@ return new class extends Migration
     {
         Schema::create('templates_ia', function (Blueprint $table) {
             $table->id();
+            // ✅ ADICIONADO: Coluna de Organização
+            $table->unsignedBigInteger('id_organizacao')->nullable()->index();
+
             $table->string('nome_template');
             $table->text('prompt_sistema')->nullable();
             $table->text('json_schema_saida')->nullable();
             $table->boolean('ativo')->default(1);
-            // timestamps opcionais
+            $table->timestamps();
         });
 
-        // Vamos adicionar a coluna 'id_template_ia' na tabela Produtos se não existir
+        // Adiciona coluna em Produtos se não existir
         if (!Schema::hasColumn('Produtos', 'id_template_ia')) {
             Schema::table('Produtos', function (Blueprint $table) {
                 $table->unsignedBigInteger('id_template_ia')->nullable()->after('id_organizacao');
-                // $table->foreign('id_template_ia')->references('id')->on('templates_ia'); // Opcional
             });
         }
     }
@@ -29,6 +31,10 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('templates_ia');
-        // Remove coluna de Produtos se quiseres rollback completo
+        if (Schema::hasColumn('Produtos', 'id_template_ia')) {
+            Schema::table('Produtos', function (Blueprint $table) {
+                $table->dropColumn('id_template_ia');
+            });
+        }
     }
 };

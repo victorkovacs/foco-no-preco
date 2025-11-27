@@ -2,8 +2,9 @@ import redis
 import json
 import time
 import mysql.connector
-from python_services.scraping.celery_app import redis_results_pool
-from python_services.shared.conectar_banco import criar_conexao_db
+
+# [CORREÇÃO] Importa do shared
+from python_services.shared.conectar_banco import criar_conexao_db, redis_results_pool
 
 NOME_FILA = 'fila_resultados'
 TAMANHO_LOTE = 500
@@ -26,27 +27,35 @@ def salvar_lote(lista_dados):
         valores = []
         for item in lista_dados:
             valores.append((
-                item['id_alvo'], item['id_organizacao'], item['id_link_externo'],
-                item['sku'], item['ID_Vendedor'], item['preco'], item['data_extracao']
+                item.get('id_alvo'), 
+                item.get('id_organizacao'), 
+                item.get('id_link_externo'),
+                item.get('sku'), 
+                item.get('ID_Vendedor'), 
+                item.get('preco'), 
+                item.get('data_extracao')
             ))
             
         cursor.executemany(sql, valores)
         conn.commit()
-        print(f"💾 [COLETOR] Salvo lote de {len(valores)} preços no MySQL.")
+        print(f"💾 [COLETOR SCRAPE] Salvo lote de {len(valores)} preços.")
         
         cursor.close()
         conn.close()
     except Exception as e:
-        print(f"❌ [COLETOR] Erro SQL: {e}")
+        print(f"❌ [COLETOR SCRAPE] Erro SQL: {e}")
         if conn: conn.close()
 
 def main():
-    print("[COLETOR] Serviço iniciado. Aguardando dados no Redis...")
-    r = redis.Redis(connection_pool=redis_results_pool)
+    print("[COLETOR SCRAPE] Serviço iniciado...")
+    try:
+        r = redis.Redis(connection_pool=redis_results_pool)
+    except Exception as e:
+        print(f"Erro Redis: {e}")
+        return
 
     while True:
         try:
-            # Pega até 500 itens de uma vez
             pipeline = r.pipeline()
             pipeline.lrange(NOME_FILA, 0, TAMANHO_LOTE-1)
             pipeline.ltrim(NOME_FILA, TAMANHO_LOTE, -1)
@@ -55,7 +64,7 @@ def main():
             itens_json = resultado[0]
             
             if not itens_json:
-                time.sleep(1) # Espera leve se fila vazia
+                time.sleep(1)
                 continue
                 
             dados_parsed = []
@@ -68,7 +77,7 @@ def main():
             salvar_lote(dados_parsed)
             
         except Exception as e:
-            print(f"❌ [COLETOR] Erro no loop: {e}")
+            print(f"❌ [COLETOR SCRAPE] Erro no loop: {e}")
             time.sleep(5)
 
 if __name__ == "__main__":

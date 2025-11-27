@@ -186,7 +186,7 @@
 
         let state = { page: 1 };
 
-        // Função de Segurança Anti-XSS
+        // --- FUNÇÃO DE SEGURANÇA ANTI-XSS (CRUCIAL) ---
         function escapeHtml(text) {
             if (!text) return text;
             return String(text)
@@ -260,6 +260,7 @@
                 <th class="text-left">Produto</th>`;
             
             vendedores.forEach(v => {
+                // SANITIZAÇÃO AQUI:
                 const nomeVend = escapeHtml(v.NomeVendedor);
                 headerHtml += `<th class="text-center min-w-[100px] max-w-[150px] truncate" title="${nomeVend}">
                     ${nomeVend.substring(0, 12)}
@@ -276,6 +277,7 @@
 
             let bodyHtml = '';
             produtos.forEach(p => {
+                // SANITIZAÇÃO AQUI:
                 const skuSafe = escapeHtml(p.SKU);
                 const nomeSafe = escapeHtml(p.Nome);
 
