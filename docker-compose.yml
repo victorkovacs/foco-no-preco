@@ -442,8 +442,10 @@ secrets:
     file: ./secrets/db_root_password.txt
   gemini_api_key:       
     file: ./secrets/gemini_api_key.txt
+  
+  # AJUSTE FEITO AQUI: Apontando para o arquivo que você tem
   google_api_key:
-    file: ./secrets/google_api_key.txt
+    file: ./secrets/gemini_api_key.txt
   
   # --- NOVOS SECRETS ---
   grafana_password:

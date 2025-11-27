@@ -39,15 +39,12 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 Route::middleware('auth')->group(function () {
 
     // --- ROTA DE ENTRADA INTELIGENTE ---
-    // Redireciona baseada no papel do usuário
     Route::get('/index', function () {
         $user = Auth::user();
-
         // Se for nivel CADASTRO (3), vai direto para gestão de produtos
         if ($user->nivel_acesso == User::NIVEL_CADASTRO) {
             return redirect()->route('produtos_dashboard.index');
         }
-
         // Os demais vão para o Dashboard
         return redirect()->route('dashboard');
     })->name('index');
@@ -78,8 +75,20 @@ Route::middleware('auth')->group(function () {
         Route::post('/produtos/monitorar', [ProdutoController::class, 'iniciarMonitoramento'])->name('produtos.monitorar');
         Route::get('/produtos/gerenciar', [ProdutoController::class, 'gerenciar'])->name('produtos.gerenciar');
 
-        // Templates de IA
-        Route::resource('templates_ia', TemplateIaController::class);
+        // --- TEMPLATES DE IA (CORRIGIDO) ---
+        Route::get('/templates-ia/list', [TemplateIaController::class, 'list'])->name('templates_ia.list');
+        Route::post('/templates-ia/gerar-automatico', [TemplateIaController::class, 'gerarPromptAutomatico'])->name('templates_ia.gerar_auto');
+
+        // Resource com URL em kebab-case (hífen) e Nomes em snake_case (underline)
+        Route::resource('templates-ia', TemplateIaController::class)->names([
+            'index' => 'templates_ia.index',
+            'create' => 'templates_ia.create',
+            'store' => 'templates_ia.store',
+            'show' => 'templates_ia.show',
+            'edit' => 'templates_ia.edit',
+            'update' => 'templates_ia.update',
+            'destroy' => 'templates_ia.destroy',
+        ]);
 
         // Atualização em Massa
         Route::get('/produtos/massa', [ProdutoController::class, 'massUpdateForm'])->name('produtos.mass_update');
@@ -128,8 +137,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/admin/dlq', [App\Http\Controllers\DlqController::class, 'index'])->name('dlq.index');
         Route::delete('/admin/dlq/clear', [App\Http\Controllers\DlqController::class, 'clear'])->name('dlq.clear');
 
-
-
         // Ações Destrutivas em Produtos (Excluir)
         Route::delete('/produtos/{id}', [ProdutoController::class, 'destroy'])->name('produtos.destroy');
     });
@@ -140,7 +147,7 @@ Route::middleware('auth')->group(function () {
     // ==============================================================================
     Route::middleware(['role:' . User::NIVEL_MESTRE])->group(function () {
 
-        // Configurações Globais do Sistema (Rotinas, Horários)
+        // Configurações Globais do Sistema
         Route::get('/admin/configuracoes', [ConfiguracaoController::class, 'index'])->name('admin.configuracoes.index');
         Route::post('/admin/configuracoes', [ConfiguracaoController::class, 'update'])->name('admin.configuracoes.update');
 

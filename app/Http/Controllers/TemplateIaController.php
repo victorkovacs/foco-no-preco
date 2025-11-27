@@ -5,19 +5,23 @@ namespace App\Http\Controllers;
 use App\Models\TemplateIa;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class TemplateIaController extends Controller
 {
-    // 1. Carregar a View
+    // Tela Principal
     public function index()
     {
         return view('templates_ia.index');
     }
 
-    // 2. API: Listar Templates (SEGURANÇA APLICADA)
+    // API: Listar Templates
     public function list()
     {
-        // ✅ CORREÇÃO: Filtra apenas pela organização do usuário logado
+        // Se a coluna id_organizacao ainda não existir, use esta linha comentada temporariamente:
+        // $templates = TemplateIa::orderBy('nome_template')->get();
+
         $templates = TemplateIa::where('id_organizacao', Auth::user()->id_organizacao)
             ->orderBy('nome_template')
             ->get();
@@ -25,71 +29,91 @@ class TemplateIaController extends Controller
         return response()->json($templates);
     }
 
-    // 3. API: Salvar (Criar ou Editar)
+    // API: Salvar
     public function store(Request $request)
     {
         $request->validate([
             'nome_template' => 'required|string|max:255',
             'prompt_sistema' => 'required|string',
-            'json_schema_saida' => 'nullable|string',
         ]);
 
-        $id = $request->input('id');
-        $id_organizacao = Auth::user()->id_organizacao; // Pega da sessão
+        $id_organizacao = Auth::user()->id_organizacao;
+        $dados = $request->only(['nome_template', 'prompt_sistema', 'json_schema_saida']);
 
-        if ($id) {
-            // ✅ CORREÇÃO: Garante que só edita se pertencer à organização
-            $template = TemplateIa::where('id', $id)
-                ->where('id_organizacao', $id_organizacao)
-                ->first();
+        // Garante id_organizacao
+        $dados['id_organizacao'] = $id_organizacao;
+        $dados['ativo'] = true;
 
-            if (!$template) {
-                return response()->json(['success' => false, 'message' => 'Template não encontrado ou acesso negado.'], 403);
-            }
+        // Create ou Update baseado no ID
+        $template = TemplateIa::updateOrCreate(
+            [
+                'id' => $request->input('id'),
+                'id_organizacao' => $id_organizacao // Segurança: só edita se for da org
+            ],
+            $dados
+        );
 
-            // Impede que o usuário mude o id_organizacao via injeção de dados
-            $dados = $request->except(['id_organizacao']);
-            $template->update($dados);
-
-            $message = 'Template atualizado com sucesso!';
-        } else {
-            // ✅ CORREÇÃO: Força o ID da organização na criação
-            $dados = $request->all();
-            $dados['id_organizacao'] = $id_organizacao;
-
-            TemplateIa::create($dados);
-            $message = 'Template criado com sucesso!';
-        }
-
-        return response()->json(['success' => true, 'message' => $message]);
+        return response()->json(['success' => true, 'message' => 'Salvo com sucesso!']);
     }
 
-    // 4. API: Buscar um para Edição
+    // API: Buscar Unico
     public function show($id)
     {
-        // ✅ CORREÇÃO: Impede ver dados de outro cliente
         $template = TemplateIa::where('id', $id)
             ->where('id_organizacao', Auth::user()->id_organizacao)
-            ->first();
+            ->firstOrFail();
 
-        if (!$template) {
-            return response()->json(['message' => 'Não encontrado'], 404);
-        }
         return response()->json($template);
     }
 
-    // 5. API: Excluir
+    // API: Excluir
     public function destroy($id)
     {
-        // ✅ CORREÇÃO: Delete seguro com escopo
-        $deleted = TemplateIa::where('id', $id)
+        TemplateIa::where('id', $id)
             ->where('id_organizacao', Auth::user()->id_organizacao)
             ->delete();
 
-        if (!$deleted) {
-            return response()->json(['success' => false, 'message' => 'Erro: Template não encontrado.'], 404);
-        }
+        return response()->json(['success' => true]);
+    }
 
-        return response()->json(['success' => true, 'message' => 'Template excluído.']);
+    // API: Gerar Prompt Automático (IA)
+    public function gerarPromptAutomatico(Request $request)
+    {
+        $request->validate(['exemplo_saida' => 'required|string|min:10']);
+
+        $apiKey = config('services.google.key') ?? env('GEMINI_API_KEY');
+        if (!$apiKey) return response()->json(['sucesso' => false, 'erro' => 'API Key ausente.'], 500);
+
+        $prompt = <<<TEXT
+ATUAÇÃO: Engenheiro de Prompt Sênior.
+TAREFA: Engenharia Reversa do texto abaixo. Crie um "prompt_sistema" (instruções para IA) e um "json_schema_saida" (se aplicável) para gerar textos similares.
+Retorne APENAS JSON.
+
+EXEMPLO:
+{$request->exemplo_saida}
+TEXT;
+
+        try {
+            $response = Http::post("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={$apiKey}", [
+                'contents' => [['parts' => [['text' => $prompt]]]],
+                'generationConfig' => ['responseMimeType' => 'application/json']
+            ]);
+
+            $json = $response->json()['candidates'][0]['content']['parts'][0]['text'] ?? '{}';
+            $data = json_decode($json, true);
+
+            // Garante que o schema venha como string formatada para o textarea
+            $schema = is_array($data['json_schema_saida'] ?? null)
+                ? json_encode($data['json_schema_saida'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
+                : ($data['json_schema_saida'] ?? '');
+
+            return response()->json([
+                'sucesso' => true,
+                'prompt_sistema' => $data['prompt_sistema'] ?? '',
+                'json_schema_saida' => $schema
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['sucesso' => false, 'erro' => $e->getMessage()], 500);
+        }
     }
 }

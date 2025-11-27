@@ -1,0 +1,10 @@
+vendor
+node_modules
+public/build
+.git
+.idea
+.vscode
+docker-compose.yml
+Dockerfile*
+README.md
+tests
