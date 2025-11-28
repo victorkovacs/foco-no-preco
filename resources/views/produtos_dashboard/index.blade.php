@@ -1,217 +1,313 @@
 @extends('layouts.app')
 
-@section('title', 'Monitor da Fila de IA')
+@section('title', 'Painel de Geração de Conteúdo')
 
 @section('content')
-<div class="w-full max-w-7xl mx-auto">
-    
-    {{-- Header --}}
-    <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-        <div>
-            <h1 class="text-3xl font-bold text-gray-800 flex items-center">
-                <i data-lucide="layers" class="mr-3 text-primary-dark"></i>
-                Monitor da Fila de Geração
-            </h1>
-            <p class="text-gray-500 mt-1">Acompanhe em tempo real o trabalho dos robôs na tabela <b>FilaGeracaoConteudo</b>.</p>
-        </div>
+<div class="container mx-auto p-4 md:p-8 max-w-7xl">
+    <h1 class="text-3xl font-bold mb-6 text-gray-800">Painel de Geração de Conteúdo</h1>
+
+    {{-- CARDS DE STATUS --}}
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+        <a href="{{ route('produtos_dashboard.index') }}" class="bg-white p-4 rounded-lg shadow-md flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow border border-transparent hover:border-gray-200 group">
+            <span class="text-sm font-medium text-gray-500 mb-2">Total de Produtos</span>
+            <span class="text-3xl font-bold text-gray-700 group-hover:text-blue-600">{{ $stats['total_fila'] }}</span>
+        </a>
         
-        {{-- Botão Principal de Ação --}}
-        <button onclick="openTaskModal()" class="bg-primary-dark text-white px-6 py-3 rounded-lg flex items-center shadow-lg hover:bg-opacity-90 transition-all">
-            <i data-lucide="plus-circle" class="w-5 h-5 mr-2"></i> 
-            Nova Geração em Massa
-        </button>
-    </div>
-
-    {{-- Cards de Estatísticas da Fila --}}
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        {{-- Card 1: Total na Fila --}}
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-            <span class="text-xs font-bold text-gray-400 uppercase">Total na Fila (Histórico)</span>
-            {{-- CORREÇÃO: Usamos 'total_fila' que vem do controller novo --}}
-            <div class="text-2xl font-bold text-gray-800 mt-1">{{ $stats['total_fila'] }}</div>
-        </div>
-
-        {{-- Card 2: Pendentes --}}
-        <a href="{{ route('produtos_dashboard.index', ['status' => 'pendente']) }}" class="bg-yellow-50 p-4 rounded-xl border border-yellow-200 cursor-pointer hover:bg-yellow-100 transition-colors">
-            <span class="text-xs font-bold text-yellow-600 uppercase">Aguardando Robô</span>
-            <div class="text-2xl font-bold text-yellow-700 mt-1">{{ $stats['pendente'] }}</div>
+        <a href="{{ route('produtos_dashboard.index', ['status' => 'pendente']) }}" class="bg-white p-4 rounded-lg shadow-md flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow border border-transparent hover:border-yellow-200 group">
+            <span class="text-sm font-medium text-gray-500 mb-2">Pendentes</span>
+            <span class="text-3xl font-bold text-yellow-500 group-hover:text-yellow-600">{{ $stats['pendente'] }}</span>
         </a>
 
-        {{-- Card 3: Processando --}}
-        <a href="{{ route('produtos_dashboard.index', ['status' => 'processando']) }}" class="bg-blue-50 p-4 rounded-xl border border-blue-200 cursor-pointer hover:bg-blue-100 transition-colors">
-            <span class="text-xs font-bold text-blue-600 uppercase">Processando Agora</span>
-            <div class="text-2xl font-bold text-blue-700 mt-1 flex items-center">
-                {{ $stats['processando'] }}
-                @if($stats['processando'] > 0)
-                    <i data-lucide="loader-2" class="ml-2 w-5 h-5 animate-spin"></i>
-                @endif
+        <a href="{{ route('produtos_dashboard.index', ['status' => 'processando']) }}" class="bg-white p-4 rounded-lg shadow-md flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow border border-transparent hover:border-purple-200 group">
+            <span class="text-sm font-medium text-gray-500 mb-2">Processando</span>
+            <span class="text-3xl font-bold text-purple-500 group-hover:text-purple-600">{{ $stats['processando'] }}</span>
+        </a>
+
+        <a href="{{ route('produtos_dashboard.index', ['status' => 'concluido']) }}" class="bg-white p-4 rounded-lg shadow-md flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow border border-transparent hover:border-green-200 group">
+            <span class="text-sm font-medium text-gray-500 mb-2">Concluídos</span>
+            <span class="text-3xl font-bold text-green-500 group-hover:text-green-600">{{ $stats['concluido'] }}</span>
+        </a>
+
+        <a href="{{ route('produtos_dashboard.index', ['status' => 'erro']) }}" class="bg-white p-4 rounded-lg shadow-md flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow border border-transparent hover:border-red-200 group">
+            <span class="text-sm font-medium text-gray-500 mb-2">Falhas</span>
+            <span class="text-3xl font-bold text-red-500 group-hover:text-red-600">{{ $stats['falhou'] }}</span>
+        </a>
+    </div>
+
+    {{-- ÁREA DE INSERÇÃO --}}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        
+        {{-- Form Manual --}}
+        <div class="bg-white p-6 rounded-lg shadow-md flex flex-col border border-gray-100">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                Adicionar Novo Produto (Manual)
+            </h2>
+            <form id="form-novo-produto" class="flex flex-col gap-4 h-full">
+                @csrf
+                <div>
+                    <label for="sku" class="block text-sm font-medium text-gray-700">SKU (Código)</label>
+                    <input type="text" id="sku" name="sku" required class="mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Ex: SKU-PROMO-006">
+                </div>
+                <div>
+                    <label for="palavra_chave" class="block text-sm font-medium text-gray-700">Palavra-Chave de Entrada</label>
+                    <input type="text" id="palavra_chave" name="palavra_chave" required class="mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Ex: Furadeira de Impacto 500W">
+                </div>
+                
+                <div>
+                    <label for="id_template_manual" class="block text-sm font-medium text-gray-700">Template de Geração (IA)</label>
+                    <select id="id_template_manual" name="id_template_manual" required class="mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 text-base focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm">
+                        <option value="">-- Selecione um Template --</option>
+                        @foreach($templates as $template)
+                            <option value="{{ $template->id }}">{{ $template->nome_template }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                
+                <button type="submit" id="btn-submit-manual" class="mt-auto w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                    Adicionar à Fila (Manual)
+                </button>
+            </form>
+            <div id="form-mensagem" class="mt-3 text-sm hidden"></div>
+        </div>
+
+        {{-- Form Massivo --}}
+        <div class="bg-white p-6 rounded-lg shadow-md flex flex-col border border-gray-100">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                Importar em Massa (Planilha CSV)
+            </h2>
+            <form id="form-upload-massa" class="flex flex-col gap-4 h-full">
+                @csrf
+                <div>
+                    <label for="arquivo_csv" class="block text-sm font-medium text-gray-700">Arquivo CSV</label>
+                    <input type="file" id="arquivo_csv" name="arquivo_csv" required accept=".csv,.txt" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                </div>
+                
+                {{-- INSTRUÇÕES E LINK DE DOWNLOAD DINÂMICO --}}
+                <div class="bg-blue-50 p-4 rounded-md text-xs text-blue-800">
+                    <p class="font-bold mb-2">Instruções:</p>
+                    <ul class="list-disc list-inside mb-3 space-y-1">
+                        <li>Arquivo <b>.csv</b> (separado por ponto e vírgula `;`)</li>
+                        <li>Colunas: <code class="bg-white px-1 py-0.5 rounded border border-blue-200 font-mono">SKU, PALAVRA_CHAVE, ID_TEMPLATE</code></li>
+                    </ul>
+                    
+                    <a href="{{ route('produtos_dashboard.template') }}" class="inline-flex items-center text-blue-700 hover:text-blue-900 font-semibold hover:underline">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        Baixar Planilha Modelo
+                    </a>
+                </div>
+
+                <button type="submit" id="btn-submit-upload" class="mt-auto w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors">
+                    Importar e Adicionar à Fila
+                </button>
+            </form>
+            <div id="upload-mensagem" class="mt-3 text-sm hidden"></div>
+        </div>
+    </div>
+
+    {{-- FILA DE PROCESSAMENTO --}}
+    <div class="px-6 py-5 border-b border-gray-200 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    {{-- Título e Contador --}}
+    <div class="flex items-center gap-2">
+        <h2 class="text-lg font-bold text-gray-800">Fila de Processamento</h2>
+        <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+            {{ $itensFila->total() }} itens
+        </span>
+    </div>
+
+    {{-- Área de Filtros --}}
+    <div class="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+        
+        <form method="GET" action="{{ route('produtos_dashboard.index') }}" class="contents">
+            
+            {{-- 1. CAMPO DE BUSCA (ESQUERDA) --}}
+            <div class="relative w-full sm:w-64">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                </div>
+                <input type="text" 
+                       name="search" 
+                       value="{{ request('search') }}" 
+                       class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm shadow-sm transition-shadow" 
+                       placeholder="Buscar SKU...">
             </div>
-        </a>
 
-        {{-- Card 4: Concluídos --}}
-        <div class="bg-green-50 p-4 rounded-xl border border-green-200">
-            <span class="text-xs font-bold text-green-600 uppercase">Concluídos</span>
-            <div class="text-2xl font-bold text-green-700 mt-1">{{ $stats['concluido'] }}</div>
-        </div>
-    </div>
-
-    {{-- Filtros e Busca --}}
-    <div class="flex justify-between items-center mb-4">
-        <a href="{{ route('produtos_dashboard.index') }}" class="text-sm text-gray-500 hover:text-primary-dark underline">
-            Limpar Filtros
-        </a>
-        <form method="GET" action="{{ route('produtos_dashboard.index') }}" class="flex gap-2">
-            <input type="text" name="search" value="{{ request('search') }}" placeholder="Buscar Nome ou SKU..." class="p-2 border border-gray-300 rounded-lg text-sm w-64">
-            <button type="submit" class="px-4 py-2 bg-gray-800 text-white rounded-lg text-sm">Buscar</button>
+            {{-- 2. DROPDOWN ESTILIZADO (DIREITA DA BUSCA) --}}
+            <div class="relative w-full sm:w-48">
+                {{-- O select real (com appearance-none para esconder a seta padrão) --}}
+                <select name="status" 
+                        onchange="this.form.submit()"
+                        class="appearance-none block w-full pl-3 pr-10 py-2 text-base border border-gray-300 bg-white rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm shadow-sm cursor-pointer hover:border-gray-400 transition-colors">
+                    <option value="">Todos os Status</option>
+                    <option value="pendente" {{ request('status') == 'pendente' ? 'selected' : '' }}>Pendente</option>
+                    <option value="processando" {{ request('status') == 'processando' ? 'selected' : '' }}>Processando</option>
+                    <option value="concluido" {{ request('status') == 'concluido' ? 'selected' : '' }}>Concluído</option>
+                    <option value="erro" {{ request('status') == 'erro' ? 'selected' : '' }}>Falha/Erro</option>
+                </select>
+                
+                {{-- Ícone da Seta Customizado (Posicionado Absolutamente) --}}
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </div>
+            </div>
         </form>
-    </div>
 
-    {{-- Tabela da Fila --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <table class="w-full text-left border-collapse">
-            <thead class="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-semibold">
-                <tr>
-                    <th class="p-4 w-16">ID Fila</th>
-                    <th class="p-4">Produto / SKU</th>
-                    <th class="p-4">Template IA</th>
-                    <th class="p-4 text-center">Status</th>
-                    <th class="p-4 text-right">Atualização</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100">
-                @forelse($itensFila as $tarefa)
-                    <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="p-4 text-gray-400 text-xs">#{{ $tarefa->id_fila }}</td>
-                        <td class="p-4">
-                            {{-- Aqui usamos os dados diretos da fila (sku e nome_produto) --}}
-                            <div class="font-medium text-gray-800">{{ $tarefa->nome_produto }}</div>
+        {{-- 3. BOTÃO LIMPAR (EXTREMA DIREITA) --}}
+        @if(request('search') || request('status'))
+            <a href="{{ route('produtos_dashboard.index') }}" 
+               class="shrink-0 inline-flex items-center justify-center w-full sm:w-auto px-3 py-2 border border-red-200 shadow-sm text-sm font-medium rounded-lg text-red-700 bg-red-50 hover:bg-red-100 hover:border-red-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all"
+               title="Limpar todos os filtros">
+                <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Limpar
+            </a>
+        @endif
+    </div>
+</div>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-100 text-xs uppercase text-gray-500 font-semibold">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left">ID</th>
+                        <th scope="col" class="px-6 py-3 text-left">SKU / Produto</th>
+                        <th scope="col" class="px-6 py-3 text-left">Palavra-Chave</th>
+                        <th scope="col" class="px-6 py-3 text-left">Template</th>
+                        <th scope="col" class="px-6 py-3 text-center">Status</th>
+                        <th scope="col" class="px-6 py-3 text-right">Data</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    @forelse($itensFila as $tarefa)
+                    <tr class="hover:bg-blue-50 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-400">#{{ $tarefa->id_fila }}</td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm font-medium text-gray-900">{{ $tarefa->nome_produto }}</div>
                             <div class="text-xs text-gray-500 font-mono">{{ $tarefa->sku }}</div>
                         </td>
-                        <td class="p-4 text-sm text-gray-600">
-                            {{ $tarefa->nome_template ?? 'Padrão' }}
-                        </td>
-                        <td class="p-4 text-center">
+                        <td class="px-6 py-4 text-sm text-gray-600">{{ $tarefa->palavra_chave_entrada }}</td>
+                        <td class="px-6 py-4 text-sm text-gray-500">{{ $tarefa->nome_template ?? '-' }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center">
                             @if($tarefa->status == 'concluido')
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                    Concluído
-                                </span>
+                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Concluído</span>
                             @elseif($tarefa->status == 'processando')
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 animate-pulse">
-                                    <i data-lucide="loader-2" class="w-3 h-3 mr-1 animate-spin"></i> Processando
-                                </span>
+                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800 animate-pulse">Processando</span>
                             @elseif($tarefa->status == 'pendente')
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                    Na Fila
-                                </span>
+                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Pendente</span>
                             @elseif($tarefa->status == 'erro')
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800" title="{{ $tarefa->mensagem_erro }}">
-                                    Erro
-                                </span>
+                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800" title="{{ $tarefa->mensagem_erro }}">Falha</span>
+                            @else
+                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">{{ $tarefa->status }}</span>
                             @endif
                         </td>
-                        <td class="p-4 text-right text-xs text-gray-500">
-                            {{ \Carbon\Carbon::parse($tarefa->data_atualizacao)->diffForHumans() }}
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-xs text-gray-500">
+                            {{ \Carbon\Carbon::parse($tarefa->data_entrada)->format('d/m H:i') }}
                         </td>
                     </tr>
-                @empty
+                    @empty
                     <tr>
-                        <td colspan="5" class="p-12 text-center text-gray-400">
-                            <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-3 opacity-20"></i>
-                            <p>A fila está vazia.</p>
-                            <button onclick="openTaskModal()" class="text-primary-dark font-medium hover:underline mt-2">Adicionar tarefas agora</button>
+                        <td colspan="6" class="px-6 py-10 text-center text-gray-500">
+                            Nenhum item na fila. Utilize os formulários acima para começar.
                         </td>
                     </tr>
-                @endforelse
-            </tbody>
-        </table>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        
         <div class="p-4 border-t border-gray-200 bg-gray-50">
             {{ $itensFila->links() }}
         </div>
     </div>
 </div>
 
-{{-- MODAL: Adicionar Tarefas (SKUs) --}}
-<div id="modal-task" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center backdrop-blur-sm">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6">
-        <h3 class="text-xl font-bold text-gray-800 mb-4">Adicionar à Fila</h3>
-        <p class="text-sm text-gray-500 mb-4">Cole os SKUs dos produtos que você quer processar (um por linha).</p>
-        
-        <div class="space-y-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Template de IA</label>
-                <select id="task_template_id" class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-dark outline-none">
-                    @foreach($templates as $template)
-                        <option value="{{ $template->id }}">{{ $template->nome_template }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Lista de SKUs</label>
-                <textarea id="task_skus" rows="6" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-dark font-mono text-sm" placeholder="SKU-001&#10;SKU-002&#10;SKU-003"></textarea>
-            </div>
-        </div>
-
-        <div class="mt-6 flex justify-end gap-3 border-t pt-4">
-            <button onclick="document.getElementById('modal-task').classList.add('hidden')" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
-            <button onclick="submitTasks()" id="btn-submit-task" class="px-4 py-2 bg-primary-dark text-white rounded-lg hover:bg-opacity-90 flex items-center">
-                <span>Adicionar à Fila</span>
-                <i id="loading-task" data-lucide="loader-2" class="w-4 h-4 ml-2 animate-spin hidden"></i>
-            </button>
-        </div>
-    </div>
-</div>
-
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        lucide.createIcons();
+    // --- LÓGICA DE ENVIO MANUAL ---
+    document.getElementById('form-novo-produto').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btn-submit-manual');
+        const msg = document.getElementById('form-mensagem');
+        
+        btn.disabled = true;
+        btn.innerText = 'Enviando...';
+        msg.classList.add('hidden');
+
+        try {
+            const response = await fetch("{{ route('produtos_dashboard.store') }}", {
+                method: 'POST',
+                body: new FormData(this),
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            const data = await response.json();
+
+            msg.classList.remove('hidden');
+            if (data.success) {
+                msg.className = 'mt-3 text-sm text-green-600 font-bold';
+                msg.innerText = data.message;
+                this.reset();
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                msg.className = 'mt-3 text-sm text-red-600 font-bold';
+                msg.innerText = data.message || 'Erro ao salvar.';
+            }
+        } catch (error) {
+            console.error(error);
+            msg.classList.remove('hidden');
+            msg.className = 'mt-3 text-sm text-red-600 font-bold';
+            msg.innerText = 'Erro de conexão.';
+        } finally {
+            btn.disabled = false;
+            btn.innerText = 'Adicionar à Fila (Manual)';
+        }
     });
 
-    function openTaskModal() {
-        document.getElementById('modal-task').classList.remove('hidden');
-    }
-
-    function submitTasks() {
-        const skus = document.getElementById('task_skus').value;
-        const templateId = document.getElementById('task_template_id').value;
-        const btn = document.getElementById('btn-submit-task');
-        const loading = document.getElementById('loading-task');
-
-        if(!skus.trim()) {
-            alert('Por favor, insira pelo menos um SKU.');
-            return;
-        }
-
-        // Bloqueia botão
+    // --- LÓGICA DE UPLOAD MASSIVO ---
+    document.getElementById('form-upload-massa').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btn-submit-upload');
+        const msg = document.getElementById('upload-mensagem');
+        
         btn.disabled = true;
-        btn.classList.add('opacity-70');
-        loading.classList.remove('hidden');
+        btn.innerText = 'Processando CSV...';
+        msg.classList.add('hidden');
 
-        fetch("{{ route('produtos_dashboard.processar') }}", {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': "{{ csrf_token() }}"
-            },
-            body: JSON.stringify({ skus: skus, template_id: templateId })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if(data.success) {
-                alert(data.message);
-                window.location.reload();
+        try {
+            const response = await fetch("{{ route('produtos_dashboard.import') }}", {
+                method: 'POST',
+                body: new FormData(this),
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            const data = await response.json();
+
+            msg.classList.remove('hidden');
+            if (data.success) {
+                msg.className = 'mt-3 text-sm text-green-600 font-bold';
+                msg.innerText = data.message;
+                this.reset();
+                setTimeout(() => window.location.reload(), 2000);
             } else {
-                alert('Erro: ' + data.message);
+                msg.className = 'mt-3 text-sm text-red-600 font-bold';
+                msg.innerText = data.message || 'Erro ao importar.';
             }
-        })
-        .catch(err => {
-            console.error(err);
-            alert('Erro de conexão ao tentar enviar tarefas.');
-        })
-        .finally(() => {
+        } catch (error) {
+            console.error(error);
+            msg.classList.remove('hidden');
+            msg.className = 'mt-3 text-sm text-red-600 font-bold';
+            msg.innerText = 'Erro de conexão ou timeout.';
+        } finally {
             btn.disabled = false;
-            btn.classList.remove('opacity-70');
-            loading.classList.add('hidden');
-        });
-    }
+            btn.innerText = 'Importar e Adicionar à Fila';
+        }
+    });
 </script>
 @endsection

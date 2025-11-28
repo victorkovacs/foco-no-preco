@@ -4,15 +4,17 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redis;
-use App\Models\AlvoMonitoramento;
-use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 
 class SystemHealthController extends Controller
 {
     public function check(Request $request)
     {
-        // 1. Coleta de Métricas
+        $user = Auth::user();
+
+        // 1. Coleta de Métricas de Fila
         try {
             $queueSize = Redis::llen('celery');
             $dlqSize   = Redis::llen('fila_dlq_erros');
@@ -21,32 +23,42 @@ class SystemHealthController extends Controller
             $dlqSize   = -1;
         }
 
-        $lastActivityDate = AlvoMonitoramento::max('data_ultima_verificacao');
-        $lastUpdateCarbon = $lastActivityDate ? Carbon::parse($lastActivityDate)->locale('pt_BR') : null;
+        // 2. Data da Última Atividade
+        $lastActivityDate = null;
+        if ($user) {
+            $lastActivityDate = DB::table('concorrentes')
+                ->where('id_organizacao', $user->id_organizacao)
+                ->max('data_extracao');
+        }
 
-        // 2. Coleta de Infra (Sem Chutes)
+        $lastUpdateCarbon = $lastActivityDate ? Carbon::parse($lastActivityDate)->locale('pt_BR') : null;
+        $textoTempo = $lastUpdateCarbon ? $lastUpdateCarbon->diffForHumans() : 'Nenhuma coleta recente';
+
+        // 3. Coleta de Infra
         $systemMem = $this->getSystemMemory();
         $systemCpu = sys_getloadavg();
         $cpuLoad   = isset($systemCpu[0]) ? $systemCpu[0] : 0;
-        $cpuCount  = $this->getCpuCount(); // <--- DETECÇÃO AUTOMÁTICA DE NÚCLEOS
+        $cpuCount  = $this->getCpuCount();
 
-        // 3. Status Global
+        // 4. Status Global
         $statusGlobal = 'operacional';
 
-        if ($lastUpdateCarbon && $lastUpdateCarbon->diffInHours(now()) > 3) {
+        // [MUDANÇA AQUI] Agora só fica laranja se passar de 24 HORAS sem dados
+        if ($lastUpdateCarbon && $lastUpdateCarbon->diffInHours(now()) > 20) {
             $statusGlobal = 'degradado';
         }
+
         if ($queueSize === -1) {
             $statusGlobal = 'erro';
         }
 
-        // 4. Resposta
+        // 5. Montagem da Resposta
         $response = [
             'status' => $statusGlobal,
-            'texto_tempo' => $lastUpdateCarbon ? $lastUpdateCarbon->diffForHumans() : 'Aguardando dados...',
+            'texto_tempo' => $textoTempo,
         ];
 
-        $user = Auth::user();
+        // Métricas Administrativas
         if ($user && method_exists($user, 'isAdmin') && $user->isAdmin()) {
             $response['admin_metrics'] = [
                 'fila_celery' => $queueSize,
@@ -54,16 +66,15 @@ class SystemHealthController extends Controller
                 'memoria_php' => $this->formatBytes(memory_get_usage(true)),
                 'server_ram'  => $systemMem['percent'],
                 'server_cpu'  => $cpuLoad,
-                'cpu_cores'   => $cpuCount, // Enviamos o limite real para o front
+                'cpu_cores'   => $cpuCount,
             ];
         }
 
         return response()->json($response);
     }
 
-    /**
-     * Conta quantos núcleos de CPU o servidor possui
-     */
+    // --- Métodos Auxiliares ---
+
     private function getCpuCount()
     {
         try {
@@ -75,7 +86,7 @@ class SystemHealthController extends Controller
             }
         } catch (\Exception $e) {
         }
-        return 1; // Padrão de segurança
+        return 1;
     }
 
     private function getSystemMemory()
@@ -89,9 +100,7 @@ class SystemHealthController extends Controller
                 $total = $totalMatches[1];
                 $available = $availableMatches[1];
                 $used = $total - $available;
-                $percent = round(($used / $total) * 100);
-
-                return ['percent' => $percent];
+                return ['percent' => round(($used / $total) * 100)];
             }
         } catch (\Exception $e) {
         }
@@ -110,11 +119,9 @@ class SystemHealthController extends Controller
 
     public function index()
     {
-        // Verifica se é admin por segurança extra
         if (!Auth::user()->isAdmin()) {
             abort(403);
         }
-
         return view('admin.infra.index');
     }
 }

@@ -5,6 +5,7 @@
 @section('content')
 <div x-data="usersData" class="w-full max-w-5xl mx-auto bg-white shadow-xl rounded-2xl p-6 md:p-8 relative">
     
+    {{-- Toast de Notificação --}}
     <div x-show="toast.visible" 
          x-transition.duration.300ms
          class="fixed top-5 right-5 z-50 flex items-center w-full max-w-md p-4 bg-white rounded-lg shadow-lg border-l-4"
@@ -17,6 +18,7 @@
         <div class="text-sm font-medium break-words" x-text="toast.message"></div>
     </div>
 
+    {{-- Cabeçalho --}}
     <div class="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
         <div>
             <h1 class="text-3xl font-bold text-gray-800">Gestão de Utilizadores</h1>
@@ -27,6 +29,7 @@
         </button>
     </div>
 
+    {{-- Lista de Cards --}}
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 min-h-[200px]">
         
         <div x-show="isLoading" class="col-span-full flex justify-center items-center py-10">
@@ -44,10 +47,17 @@
             <div class="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-shadow flex flex-col justify-between">
                 <div>
                     <div class="flex justify-between items-start mb-3">
+                        {{-- LABEL DE NÍVEL AJUSTADA --}}
                         <span class="px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide"
-                              :class="user.nivel_acesso == 1 ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'"
-                              x-text="user.nivel_acesso == 1 ? 'Admin' : (user.nivel_acesso == 2 ? 'User' : 'Cadastro')">
+                              :class="{
+                                  'bg-purple-100 text-purple-700': user.nivel_acesso == 1, 
+                                  'bg-indigo-100 text-indigo-700': user.nivel_acesso == 2, 
+                                  'bg-yellow-100 text-yellow-700': user.nivel_acesso == 3, 
+                                  'bg-blue-100 text-blue-700': user.nivel_acesso == 4
+                              }"
+                              x-text="user.nivel_acesso == 1 ? 'Mestre' : (user.nivel_acesso == 2 ? 'Admin' : (user.nivel_acesso == 3 ? 'Cadastro' : 'Usuário'))">
                         </span>
+
                         <span class="flex items-center text-xs font-medium px-2 py-1 rounded-full"
                               :class="user.ativo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'">
                             <span class="w-1.5 h-1.5 rounded-full mr-1.5" :class="user.ativo ? 'bg-green-500' : 'bg-red-500'"></span>
@@ -55,9 +65,6 @@
                         </span>
                     </div>
                     <h4 class="text-lg font-bold text-gray-800 truncate" :title="user.email" x-text="user.email"></h4>
-                    <p class="text-xs text-gray-400 mt-1 font-mono truncate">
-                        API: <span x-text="user.api_key ? '...' + user.api_key.slice(-8) : 'N/A'"></span>
-                    </p>
                 </div>
                 <div class="mt-5 pt-4 border-t border-gray-100 flex justify-end gap-2">
                     <button type="button" @click="openModal(user)" class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Editar">
@@ -71,6 +78,7 @@
         </template>
     </div>
 
+    {{-- Modal --}}
     <div x-show="modalOpen" style="display: none;" 
          class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
          x-transition.opacity>
@@ -91,19 +99,35 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
                     <input type="email" x-model="form.email" required class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-dark outline-none">
                 </div>
+                
+                {{-- Campo Senha com Visualizar --}}
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Senha</label>
-                    <input type="password" x-model="form.senha" :required="!isEdit" 
-                           class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-dark outline-none" 
-                           :placeholder="isEdit ? 'Deixe em branco para manter' : '********'">
+                    <div class="relative">
+                        <input :type="showPassword ? 'text' : 'password'" 
+                               x-model="form.senha" 
+                               :required="!isEdit" 
+                               class="w-full p-2.5 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-dark outline-none transition-colors" 
+                               :placeholder="isEdit ? 'Deixe em branco para manter' : '********'">
+                        
+                        <button type="button" 
+                                @click="showPassword = !showPassword" 
+                                class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none p-1 rounded-md hover:bg-gray-100 transition-colors"
+                                tabindex="-1">
+                            <i x-show="!showPassword" data-lucide="eye" class="w-5 h-5"></i>
+                            <i x-show="showPassword" data-lucide="eye-off" class="w-5 h-5" style="display: none;"></i>
+                        </button>
+                    </div>
                 </div>
+
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Nível</label>
+                        {{-- DROPDOWN ATUALIZADO PARA OS NOVOS NÍVEIS --}}
                         <select x-model="form.nivel_acesso" class="w-full p-2.5 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-primary-dark outline-none">
-                            <option value="1">Administrador</option>
-                            <option value="2">Utilizador</option>
+                            <option value="2">Administrador</option>
                             <option value="3">Cadastro</option>
+                            <option value="4">Usuário</option>
                         </select>
                     </div>
                     <div>
@@ -114,15 +138,7 @@
                         </select>
                     </div>
                 </div>
-                <div class="pt-2 border-t border-gray-100">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Chave de API</label>
-                    <div class="flex gap-2">
-                        <input type="text" x-model="form.api_key" readonly class="flex-1 p-2.5 bg-gray-50 border border-gray-300 rounded-lg text-xs font-mono text-gray-600">
-                        <button type="button" @click="generateKey" class="p-2.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 border border-gray-300" title="Gerar Nova">
-                            <i data-lucide="refresh-cw" class="w-5 h-5"></i>
-                        </button>
-                    </div>
-                </div>
+
                 <div class="pt-4 flex justify-end gap-3">
                     <button type="button" @click="modalOpen = false" class="px-5 py-2.5 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors">Cancelar</button>
                     <button type="submit" class="px-5 py-2.5 bg-primary-dark hover:bg-primary-darker text-white rounded-lg font-medium shadow-md transition-colors flex items-center" :disabled="isSaving">
@@ -143,7 +159,9 @@
             isSaving: false,
             modalOpen: false,
             isEdit: false,
-            form: { id: null, email: '', senha: '', nivel_acesso: 2, ativo: 1, api_key: '' },
+            showPassword: false,
+            // Padrão atualizado para '4' (Usuário) e ativo '1'
+            form: { id: null, email: '', senha: '', nivel_acesso: '4', ativo: '1' },
             toast: { visible: false, message: '', type: 'success' },
 
             init() {
@@ -154,24 +172,20 @@
                 this.toast.message = message;
                 this.toast.type = type;
                 this.toast.visible = true;
-                
-                // Garante que os ícones do toast sejam renderizados
                 this.$nextTick(() => lucide.createIcons());
                 setTimeout(() => { this.toast.visible = false }, 4000);
             },
 
-            // Função central para cabeçalhos da API (evita repetição)
             getHeaders() {
                 return {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json', // Importante para o Laravel não redirecionar em erro
+                    'Accept': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                 };
             },
 
             fetchUsers() {
                 this.isLoading = true;
-                // headers adicionados para garantir resposta JSON
                 fetch("{{ route('users.list') }}", { headers: { 'Accept': 'application/json' } })
                     .then(res => {
                         if(!res.ok) throw new Error('Erro HTTP: ' + res.status);
@@ -192,19 +206,22 @@
 
             openModal(user = null) {
                 this.isEdit = !!user;
-                if (user) {
-                    // Clona o usuário para o form e limpa a senha para não enviar hash antigo
-                    this.form = { ...user, senha: '' };
-                } else {
-                    this.form = { id: null, email: '', senha: '', nivel_acesso: 2, ativo: 1, api_key: '' };
-                }
-                this.modalOpen = true;
-            },
+                this.showPassword = false;
 
-            generateKey() {
-                const array = new Uint8Array(24);
-                window.crypto.getRandomValues(array);
-                this.form.api_key = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+                if (user) {
+                    this.form = { 
+                        ...user, 
+                        senha: '', 
+                        ativo: user.ativo ? '1' : '0',
+                        nivel_acesso: String(user.nivel_acesso)
+                    };
+                } else {
+                    // Reset para novo usuário com nível 4 por padrão
+                    this.form = { id: null, email: '', senha: '', nivel_acesso: '4', ativo: '1' };
+                }
+                
+                this.modalOpen = true;
+                this.$nextTick(() => lucide.createIcons());
             },
 
             saveUser() {
@@ -220,11 +237,8 @@
                 .then(async res => {
                     const data = await res.json();
                     
-                    // Se a resposta não for OK (ex: 422 Erro de Validação)
                     if (!res.ok) {
-                        // Se houver erros de validação (padrão Laravel)
                         if (res.status === 422 && data.errors) {
-                            // Junta as mensagens de erro em uma única string
                             throw new Error(Object.values(data.errors).flat().join(' '));
                         }
                         throw new Error(data.message || 'Erro ao salvar.');
@@ -233,7 +247,7 @@
                 })
                 .then(data => {
                     this.modalOpen = false;
-                    this.fetchUsers(); // Recarrega a lista
+                    this.fetchUsers();
                     this.showToast(data.message, 'success');
                 })
                 .catch(error => {

@@ -132,7 +132,7 @@
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-200 bg-white">
-                                @forelse($errors as $index => $error)
+                                @forelse($dlqErrors as $index => $error)
                                     <tr>
                                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-500 sm:pl-6">
                                             {{ \Carbon\Carbon::parse($error['failed_at'] ?? now())->format('d/m/Y H:i:s') }}
@@ -170,7 +170,7 @@
             </div>
             
             <div class="mt-4">
-                {{ $errors->links() }}
+                {{ $dlqErrors->links() }}
             </div>
         </div>
     </div>
@@ -215,7 +215,7 @@
 </div>
 
 <script>
-    const dlqErrors = @json($errors->items());
+    const dlqErrors = @json($dlqErrors->items());
 
     function openModal(index) {
         const error = dlqErrors[index];

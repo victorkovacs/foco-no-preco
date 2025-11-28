@@ -19,6 +19,8 @@ use App\Http\Controllers\DetalheController;
 use App\Http\Controllers\ProdutoDashboardController;
 use App\Http\Controllers\ExportController;
 use App\Http\Controllers\ConfiguracaoController;
+use App\Http\Controllers\DlqController;
+use App\Http\Controllers\SystemHealthController;
 
 // Redirecionamento inicial
 Route::get('/', function () {
@@ -54,6 +56,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/detalhes', [DetalheController::class, 'index'])->name('dashboard.detalhes');
 
+    // Exportação do Dashboard (Filtrada)
+    Route::get('/export/dashboard', [ExportController::class, 'exportDashboardDetalhes'])->name('export.dashboard');
+
     // Perfil
     Route::get('/perfil/senha', [ProfileController::class, 'edit'])->name('profile.password.edit');
     Route::post('/perfil/senha', [ProfileController::class, 'update'])->name('profile.password.update');
@@ -63,7 +68,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/produtos/grafico', [ProdutoController::class, 'getDadosGrafico'])->name('produtos.grafico');
 
     // API Saúde (Widget)
-    Route::get('/api/health-check', [App\Http\Controllers\SystemHealthController::class, 'check'])->name('api.health_check');
+    Route::get('/api/health-check', [SystemHealthController::class, 'check'])->name('api.health_check');
 
 
     // ==============================================================================
@@ -75,7 +80,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/produtos/monitorar', [ProdutoController::class, 'iniciarMonitoramento'])->name('produtos.monitorar');
         Route::get('/produtos/gerenciar', [ProdutoController::class, 'gerenciar'])->name('produtos.gerenciar');
 
-        // --- TEMPLATES DE IA (CORRIGIDO) ---
+        // --- TEMPLATES DE IA ---
         Route::get('/templates-ia/list', [TemplateIaController::class, 'list'])->name('templates_ia.list');
         Route::post('/templates-ia/gerar-automatico', [TemplateIaController::class, 'gerarPromptAutomatico'])->name('templates_ia.gerar_auto');
 
@@ -104,6 +109,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/produtos/conteudo', [ProdutoDashboardController::class, 'index'])->name('produtos_dashboard.index');
         Route::post('/produtos/conteudo', [ProdutoDashboardController::class, 'store'])->name('produtos_dashboard.store');
         Route::post('/produtos/conteudo/processar', [ProdutoDashboardController::class, 'sendBatch'])->name('produtos_dashboard.processar');
+        Route::post('/produtos/conteudo/import', [ProdutoDashboardController::class, 'import'])->name('produtos_dashboard.import');
+        Route::get('/produtos/conteudo/template', [ProdutoDashboardController::class, 'downloadTemplate'])->name('produtos_dashboard.template');
 
         // Curadoria e IA Manual
         Route::get('/curadoria', [CuradoriaController::class, 'index'])->name('curadoria.index');
@@ -111,7 +118,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/ia-manual', [IaManualController::class, 'index'])->name('ia_manual.index');
         Route::post('/ia-manual/process', [IaManualController::class, 'process'])->name('ia_manual.process');
 
-        // Exportações
+        // Exportações (Antiga - Concorrentes Gerais)
         Route::get('/export/concorrentes', [ExportController::class, 'exportConcorrentes'])->name('export.concorrentes');
     });
 
@@ -132,10 +139,13 @@ Route::middleware('auth')->group(function () {
         Route::get('/concorrentes', [VendedorController::class, 'index'])->name('concorrentes.index');
         Route::put('/concorrentes/{id}', [VendedorController::class, 'update'])->name('concorrentes.update');
 
+        // [NOVO] Rota de Teste de Seletor
+        Route::post('/concorrentes/testar', [VendedorController::class, 'testarSeletor'])->name('concorrentes.testar');
+
         // Infra e Monitoramento
-        Route::get('/admin/infra', [App\Http\Controllers\SystemHealthController::class, 'index'])->name('infra.index');
-        Route::get('/admin/dlq', [App\Http\Controllers\DlqController::class, 'index'])->name('dlq.index');
-        Route::delete('/admin/dlq/clear', [App\Http\Controllers\DlqController::class, 'clear'])->name('dlq.clear');
+        Route::get('/admin/infra', [SystemHealthController::class, 'index'])->name('infra.index');
+        Route::get('/admin/dlq', [DlqController::class, 'index'])->name('dlq.index');
+        Route::delete('/admin/dlq/clear', [DlqController::class, 'clear'])->name('dlq.clear');
 
         // Ações Destrutivas em Produtos (Excluir)
         Route::delete('/produtos/{id}', [ProdutoController::class, 'destroy'])->name('produtos.destroy');
@@ -150,6 +160,8 @@ Route::middleware('auth')->group(function () {
         // Configurações Globais do Sistema
         Route::get('/admin/configuracoes', [ConfiguracaoController::class, 'index'])->name('admin.configuracoes.index');
         Route::post('/admin/configuracoes', [ConfiguracaoController::class, 'update'])->name('admin.configuracoes.update');
+        Route::post('/admin/configuracoes/gerar-token', [ConfiguracaoController::class, 'gerarTokenOrganizacao'])
+            ->name('admin.configuracoes.gerar_token');
 
         // Financeiro / Custos
         Route::get('/custos-ia', [CustosIaController::class, 'index'])->name('custos_ia.index');

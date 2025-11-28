@@ -35,7 +35,7 @@ class DlqController extends Controller
 
         $itemsAtual = $collection->slice(($page - 1) * $perPage, $perPage)->values();
 
-        $errors = new LengthAwarePaginator(
+        $dlqErrors = new LengthAwarePaginator(
             $itemsAtual,
             $collection->count(),
             $perPage,
@@ -44,7 +44,7 @@ class DlqController extends Controller
         );
 
         return view('admin.dlq.index', [
-            'errors' => $errors,
+            'dlqErrors' => $dlqErrors,
             'totalRedis' => $totalRedis,
             'safetyLimit' => $safetyLimit,
             'sentryIssues' => $sentryIssues

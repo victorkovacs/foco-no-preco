@@ -17,6 +17,8 @@ services:
     secrets:
       - db_password
       - sentry_auth_token
+      - mail_username  # <--- Novo
+      - mail_password
 
   # --- 2. O SERVIDOR WEB (NGINX) ---
   webserver:
@@ -422,6 +424,34 @@ services:
     networks:
       - foconopreco-network
 
+# --- AGENDADOR LARAVEL (CRON) ---
+  # Este container acorda o Laravel a cada minuto para verificar rotinas
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.laravel
+    image: foconopreco-app
+    container_name: foconopreco_scheduler
+    restart: unless-stopped
+    working_dir: /var/www
+    command: php artisan schedule:work
+    volumes:
+      - .:/var/www
+    env_file: .env
+    environment:
+      - SENTRY_LARAVEL_DSN=${SENTRY_LARAVEL_DSN}
+    depends_on:
+      - app
+      - db
+      - redis
+    networks:
+      - foconopreco-network
+    secrets:
+      - db_password
+      - sentry_auth_token
+      - mail_username  # <--- Novo
+      - mail_password
+
 # --- DECLARAÇÃO GLOBAL DOS SECRETS ---
 networks:
   foconopreco-network:
@@ -456,3 +486,7 @@ secrets:
     file: ./secrets/brightdata_password.txt
   sentry_auth_token:
     file: ./secrets/sentry_auth_token.txt
+  mail_username:
+    file: ./secrets/mail_username.txt
+  mail_password:
+    file: ./secrets/mail_password.txt

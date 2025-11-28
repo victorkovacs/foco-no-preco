@@ -22,11 +22,11 @@ RUN npm run build
 # ==============================================================================
 # ESTÁGIO 2: Aplicação Final (PHP)
 # ==============================================================================
-# Esta é a imagem que vai realmente para produção. Sem Node.js instalado.
+# Esta é a imagem que vai realmente para produção.
 FROM php:8.2-fpm
 
-# 1. Instala dependências do sistema necessárias para o Laravel e Extensões PHP
-# Removemos GNUPG e CURL do Node, pois não precisamos mais baixar Node aqui
+# 1. Instala dependências do sistema, PHP e PYTHON
+# Adicionado: python3, python3-requests, python3-bs4
 RUN apt-get update && apt-get install -y \
     git \
     libpng-dev \
@@ -36,6 +36,9 @@ RUN apt-get update && apt-get install -y \
     libzip-dev \
     zip \
     unzip \
+    python3 \
+    python3-requests \
+    python3-bs4 \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # 2. Instala Extensões do PHP
@@ -51,21 +54,15 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www
 
 # 5. Copia os arquivos do Backend
-# (Nota: Em produção, costumamos copiar o composer.json primeiro para cache, 
-# mas copiando tudo funciona bem para este contexto)
 COPY . .
 
 # 6. Copia os ASSETS COMPILADOS do Estágio 1
-# Aqui está a mágica: Pegamos apenas a pasta 'build' pronta.
 COPY --from=frontend_builder /app/public/build /var/www/public/build
 
 # 7. Instala dependências do PHP (Otimizado para Produção)
-# --no-dev: Não instala phpunit/faker/mockery
-# --optimize-autoloader: Melhora a performance do carregamento de classes
 RUN composer install --no-interaction --optimize-autoloader --no-dev
 
 # 8. Ajusta permissões
-# Garante que o usuário do servidor web (www-data) possa escrever nos logs e cache
 RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
 
 # 9. Finalização

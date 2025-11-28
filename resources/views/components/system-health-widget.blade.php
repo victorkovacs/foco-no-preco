@@ -3,13 +3,15 @@
         
         <div class="flex items-center">
             <span class="relative flex h-3 w-3 mr-3">
+              {{-- O Ping (Animação) --}}
               <span id="status-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-gray-400 opacity-75"></span>
+              {{-- O Ponto Fixo --}}
               <span id="status-dot" class="relative inline-flex rounded-full h-3 w-3 bg-gray-500"></span>
             </span>
             <div>
                 <h3 class="text-sm font-medium text-gray-900">Status do Monitoramento</h3>
                 <p class="text-sm text-gray-500">
-                    Última atualização: 
+                    Última coleta: 
                     <span id="last-update-label" class="font-semibold text-gray-700">Carregando...</span>
                 </p>
             </div>
@@ -39,7 +41,30 @@
     document.addEventListener('DOMContentLoaded', () => {
         const endpoint = "{{ route('api.health_check') }}";
         
-        // Função auxiliar para escolher a cor
+        // [CORREÇÃO] Mapeamento explícito de classes para o Tailwind não remover (PurgeCSS)
+        const statusConfig = {
+            'operacional': {
+                panel: 'border-green-500',
+                dot:   'bg-green-500',
+                ping:  'bg-green-400'
+            },
+            'degradado': {
+                panel: 'border-yellow-500',
+                dot:   'bg-yellow-500',
+                ping:  'bg-yellow-400'
+            },
+            'erro': {
+                panel: 'border-red-500',
+                dot:   'bg-red-500',
+                ping:  'bg-red-400'
+            },
+            'default': {
+                panel: 'border-gray-300',
+                dot:   'bg-gray-500',
+                ping:  'bg-gray-400'
+            }
+        };
+
         const getColorClass = (value, warningThreshold, criticalThreshold) => {
             const num = parseFloat(value);
             if (num >= criticalThreshold) return 'text-red-600';
@@ -49,18 +74,22 @@
 
         const updateWidget = async () => {
             try {
-                const res = await fetch(endpoint);
+                // Timestamp para evitar cache do navegador
+                const res = await fetch(endpoint + '?_t=' + new Date().getTime());
                 const data = await res.json();
 
                 // 1. Status Geral
                 const panel = document.getElementById('health-widget-panel');
                 const dot = document.getElementById('status-dot');
                 const ping = document.getElementById('status-ping');
-                const statusColor = data.status === 'operacional' ? 'green' : (data.status === 'degradado' ? 'yellow' : 'red');
+                
+                // Seleciona as classes baseado no status (ou default se não existir)
+                const config = statusConfig[data.status] || statusConfig['default'];
 
-                panel.className = `bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6 border-l-4 transition-colors duration-500 border-${statusColor}-500`;
-                dot.className = `relative inline-flex rounded-full h-3 w-3 bg-${statusColor}-500`;
-                ping.className = `animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 bg-${statusColor}-400`;
+                // Aplica as classes
+                panel.className = `bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6 border-l-4 transition-colors duration-500 ${config.panel}`;
+                dot.className   = `relative inline-flex rounded-full h-3 w-3 ${config.dot}`;
+                ping.className  = `animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${config.ping}`;
 
                 document.getElementById('last-update-label').innerText = data.texto_tempo;
 
@@ -80,18 +109,15 @@
                     ramEl.innerText = ramVal;
                     ramEl.className = "font-bold " + getColorClass(ramVal, 70, 90);
 
-                    // CPU (Load)
+                    // CPU
                     const load = parseFloat(data.admin_metrics.server_cpu);
                     const cores = parseInt(data.admin_metrics.cpu_cores || 1);
                     
                     const cpuEl = document.getElementById('metric-cpu');
-                    
-                    // --- AQUI ESTÁ A MUDANÇA: .toFixed(2) ---
                     cpuEl.innerText = load.toFixed(2); 
                     
                     document.getElementById('metric-cores').innerText = cores + ' Cr';
 
-                    // Lógica de Cor
                     if (load >= cores) {
                         cpuEl.className = 'font-bold text-red-600';
                     } else if (load >= (cores * 0.7)) {
@@ -100,7 +126,9 @@
                         cpuEl.className = 'font-bold text-green-600';
                     }
                 }
-            } catch (err) { console.error(err); }
+            } catch (err) { 
+                console.error("Erro widget:", err); 
+            }
         };
 
         updateWidget();
