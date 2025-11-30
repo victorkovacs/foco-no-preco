@@ -45,6 +45,16 @@ return new class extends Migration
                 'created_at' => now(),
                 'updated_at' => now()
             ],
+            // ---------------------------------
+            [
+                'chave' => 'horario_importacao_sitemap',
+                'valor' => '04:00', // Padrão 04:00 da manhã
+                'descricao' => 'Horário da Descoberta de Novos Links (Sitemap)',
+                'tipo' => 'time',
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            // ---------------------------------
             [
                 'chave' => 'intervalo_dashboard_horas',
                 'valor' => '3',

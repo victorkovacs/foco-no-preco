@@ -42,19 +42,20 @@ try {
 
         Schedule::command('relatorio:diario')->dailyAt($horaEmailAgendada);
 
-        // 3. IMPORTAÇÃO DE SITEMAP (Horário Fixo Diário - NOVO)
+        // 3. IMPORTAÇÃO DE SITEMAP (Novos Links - Rotina Nova)
         // ----------------------------------------------------
-        $horarioScraping = DB::table('configuracoes_sistema')
-            ->where('chave', 'horario_scraping')
+        // Busca o horário específico desta rotina nova
+        $horarioSitemap = DB::table('configuracoes_sistema')
+            ->where('chave', 'horario_importacao_sitemap')
             ->value('valor');
 
-        // Valida se é um horário válido (HH:MM), senão usa 01:00
-        $horaScrapingAgendada = preg_match('/^\d{2}:\d{2}$/', $horarioScraping ?? '') ? $horarioScraping : '01:00';
+        // Se não configurado, roda às 04:00 da manhã
+        $horaSitemapAgendada = preg_match('/^\d{2}:\d{2}$/', $horarioSitemap ?? '') ? $horarioSitemap : '04:00';
 
         Schedule::command('sitemap:importar')
-            ->dailyAt($horaScrapingAgendada)
-            ->withoutOverlapping() // Evita rodar em cima de uma execução travada
-            ->appendOutputTo(storage_path('logs/sitemap_import.log')); // Salva log específico
+            ->dailyAt($horaSitemapAgendada)
+            ->withoutOverlapping()
+            ->appendOutputTo(storage_path('logs/sitemap_import.log'));
 
         // 4. BACKUP DIÁRIO (Exemplo se quiser usar a chave que já existe no banco)
         // ----------------------------------------------------
@@ -68,16 +69,7 @@ try {
         // Schedule::command('backup:run')->dailyAt($horaBackupAgendada);
     }
 } catch (\Exception $e) {
-    // --- FALLBACK DE SEGURANÇA (Caso o banco falhe) ---
-
-    // Padrão: Dashboard a cada hora
     Schedule::command('dashboard:update')->hourly();
-
-    // Padrão: Relatório às 08:00
     Schedule::command('relatorio:diario')->dailyAt('08:00');
-
-    // Padrão: Sitemap às 01:00
-    Schedule::command('sitemap:importar')
-        ->dailyAt('01:00')
-        ->withoutOverlapping();
+    Schedule::command('sitemap:importar')->dailyAt('04:00');
 }
