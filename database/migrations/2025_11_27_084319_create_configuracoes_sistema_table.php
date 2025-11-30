@@ -10,14 +10,14 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('configuracoes_sistema', function (Blueprint $table) {
-            $table->string('chave')->primary(); // Ex: 'horario_scraping'
-            $table->string('valor');            // Ex: '01:00'
+            $table->string('chave')->primary();
+            $table->string('valor');
             $table->string('descricao')->nullable();
-            $table->string('tipo')->default('text'); // text, number, time (para ajudar no input do html)
+            $table->string('tipo')->default('text');
             $table->timestamps();
         });
 
-        // Popula com os padrões que você definiu
+        // Popula com os padrões
         DB::table('configuracoes_sistema')->insert([
             [
                 'chave' => 'horario_scraping',
@@ -27,6 +27,16 @@ return new class extends Migration
                 'created_at' => now(),
                 'updated_at' => now()
             ],
+            // --- NOVO ITEM ADICIONADO AQUI ---
+            [
+                'chave' => 'horario_envio_email',
+                'valor' => '08:00',
+                'descricao' => 'Horário do Relatório por E-mail',
+                'tipo' => 'time',
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            // ---------------------------------
             [
                 'chave' => 'horario_backup',
                 'valor' => '00:01',

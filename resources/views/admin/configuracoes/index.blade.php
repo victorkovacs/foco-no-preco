@@ -12,7 +12,13 @@
         </h1>
     </div>
 
-    {{-- REMOVIDO: O bloco @if(session('success')) que causava duplicação --}}
+    {{-- Feedback de Sucesso --}}
+    @if(session('success'))
+        <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded shadow-sm" role="alert">
+            <p class="font-bold">Sucesso!</p>
+            <p>{{ session('success') }}</p>
+        </div>
+    @endif
 
     {{-- 1. SEÇÃO: CHAVE DE API DA ORGANIZAÇÃO --}}
     <div class="bg-white rounded-xl shadow-md border border-gray-100 p-6 mb-8 relative" x-data="apiKeyManager()">
@@ -116,23 +122,26 @@
                         <div class="flex items-center">
                             @if($config->tipo == 'time')
                                 <input type="time" 
+                                       id="{{ $config->chave }}"
                                        name="configs[{{ $config->chave }}]" 
                                        value="{{ $config->valor }}"
                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-700">
                             @elseif($config->tipo == 'number')
                                 <input type="number" 
+                                       id="{{ $config->chave }}"
                                        name="configs[{{ $config->chave }}]" 
                                        value="{{ $config->valor }}"
                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-700">
                                 <span class="ml-2 text-gray-500 text-sm font-medium">horas</span>
                             @else
                                 <input type="text" 
+                                       id="{{ $config->chave }}"
                                        name="configs[{{ $config->chave }}]" 
                                        value="{{ $config->valor }}"
                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-700">
                             @endif
                         </div>
-                        <p class="text-xs text-gray-400 mt-2 font-mono">ID: {{ $config->chave }}</p>
+                        <p class="text-xs text-gray-400 mt-2 font-mono">Chave: {{ $config->chave }}</p>
                     </div>
                 @endforeach
             </div>
